@@ -476,24 +476,24 @@ function renderReportPreview(type, startDate, endDate, teamName) {
     const grandRate = totalGoal.accum > 0 ? Math.round((totalYear.accum / totalGoal.accum) * 100) : 0;
     tbody.innerHTML += `
       <tr style="background:#f2f2f2; font-weight:bold;">
-        <td colspan="2">총 합계</td>
-        <td>${Utils.formatNumber(totalGoal.real)}</td>
-        <td>${Utils.formatNumber(totalGoal.count)}</td>
-        <td>${Utils.formatNumber(totalGoal.accum)}</td>
+        <td colspan="2" style="border: 1px solid #333333;">총 합계</td>
+        <td style="border: 1px solid #333333;">${Utils.formatNumber(totalGoal.real)}</td>
+        <td style="border: 1px solid #333333;">${Utils.formatNumber(totalGoal.count)}</td>
+        <td style="border: 1px solid #333333;">${Utils.formatNumber(totalGoal.accum)}</td>
         
-        <td class="bg-light-blue">${Utils.formatNumber(totalPeriod.real)}</td>
-        <td class="bg-light-blue">${Utils.formatNumber(totalPeriod.count)}</td>
-        <td class="bg-light-blue">${Utils.formatNumber(totalPeriod.accum)}</td>
+        <td class="bg-light-blue" style="border: 1px solid #333333;">${Utils.formatNumber(totalPeriod.real)}</td>
+        <td class="bg-light-blue" style="border: 1px solid #333333;">${Utils.formatNumber(totalPeriod.count)}</td>
+        <td class="bg-light-blue" style="border: 1px solid #333333;">${Utils.formatNumber(totalPeriod.accum)}</td>
         
-        <td>${Utils.formatNumber(totalMonth.real)}</td>
-        <td>${Utils.formatNumber(totalMonth.count)}</td>
-        <td>${Utils.formatNumber(totalMonth.accum)}</td>
+        <td style="border: 1px solid #333333;">${Utils.formatNumber(totalMonth.real)}</td>
+        <td style="border: 1px solid #333333;">${Utils.formatNumber(totalMonth.count)}</td>
+        <td style="border: 1px solid #333333;">${Utils.formatNumber(totalMonth.accum)}</td>
         
-        <td>${Utils.formatNumber(totalYear.real)}</td>
-        <td>${Utils.formatNumber(totalYear.count)}</td>
-        <td>${Utils.formatNumber(totalYear.accum)}</td>
+        <td style="border: 1px solid #333333;">${Utils.formatNumber(totalYear.real)}</td>
+        <td style="border: 1px solid #333333;">${Utils.formatNumber(totalYear.count)}</td>
+        <td style="border: 1px solid #333333;">${Utils.formatNumber(totalYear.accum)}</td>
         
-        <td>${grandRate}%</td>
+        <td style="border: 1px solid #333333;">${grandRate}%</td>
       </tr>
     `;
   }
@@ -534,7 +534,9 @@ function renderReportPreview(type, startDate, endDate, teamName) {
       html += `
         <tr style="border-bottom: 1px solid #333333; ${sIdx === Object.keys(staffLogs).length - 1 ? 'border-bottom:none;' : ''}">
           <td style="width:149px; border:none; border-right:1px solid #333333; background-color:#fafafa; font-weight:bold; vertical-align:middle; text-align:center; padding:12px;">${sName}</td>
-          <td style="border:none; text-align:left; padding:12px; white-space:pre-line; line-height:1.6; font-size:12px;">${bulletText.trim()}</td>
+          <td style="border:none; text-align:left; padding:12px; vertical-align:top;">
+            <textarea class="edit-worklog-input" data-staff="${sName}" style="width:100%; min-height:120px; font-size:12px; resize:vertical; padding:8px; border:1px solid #ddd; border-radius:4px; line-height:1.6; background-color:rgba(0,0,0,0.01);">${bulletText.trim()}</textarea>
+          </td>
         </tr>
       `;
     });
@@ -591,7 +593,7 @@ function renderReportPreview(type, startDate, endDate, teamName) {
       
       html += `
         <div style="text-align: right; margin-top:8px;">
-          <button class="btn-primary" onclick="saveAllSupervisions('${startDate}', '${teamName}')" style="padding: 8px 20px; font-size:13px;">💾 슈퍼비전 전체 저장</button>
+          <button class="btn-primary" onclick="saveAllPreviewChanges('${startDate}', '${teamName}')" style="padding: 8px 20px; font-size:13px;">💾 업무내용 및 슈퍼비전 통합 저장</button>
         </div>
       `;
       supervisionDiv.innerHTML = html;
@@ -621,7 +623,7 @@ function renderReportPreview(type, startDate, endDate, teamName) {
   }
 }
 
-window.saveAllSupervisions = async function(date, teamName) {
+window.saveAllPreviewChanges = async function(date, teamName) {
   const supervisions = [];
   
   const totalEl = document.getElementById('supervision-total');
@@ -641,14 +643,59 @@ window.saveAllSupervisions = async function(date, teamName) {
     }
   });
 
+  // Extract edited work logs
+  const bulkLogs = [];
+  const worklogInputs = document.querySelectorAll('.edit-worklog-input');
+  worklogInputs.forEach(input => {
+    const sName = input.getAttribute('data-staff');
+    const rawText = input.value.trim();
+    if (!rawText) return;
+    
+    const regex = /\[(.*?)\]([\s\S]*?)(?=\n\[|$)/g;
+    let match;
+    let parsedLogs = [];
+    let hasMatch = false;
+    
+    while ((match = regex.exec(rawText)) !== null) {
+      hasMatch = true;
+      let pName = match[1].trim();
+      let pContent = match[2].trim();
+      pContent = pContent.replace(/^\s*\*\s*/gm, '').trim(); 
+      if (pName === '오늘의 종합 업무 내용') pName = 'COMMON';
+      parsedLogs.push({ 사업명: pName, 업무내용: pContent });
+    }
+    
+    if (!hasMatch) {
+      let cleanText = rawText.replace(/^\s*\*\s*/gm, '').trim();
+      parsedLogs.push({ 사업명: 'COMMON', 업무내용: cleanText });
+    }
+    
+    bulkLogs.push({ 직원명: sName, logs: parsedLogs });
+  });
+
   try {
     Utils.showLoading();
-    await API.fetchGAS('submitSupervision', { date, teamName, supervisions });
+    const tasks = [];
+    // Only call supervision API if there's supervision area rendered (daily view)
+    if (document.getElementById('supervision-total')) {
+      tasks.push(API.fetchGAS('submitSupervision', { date, teamName, supervisions }));
+    }
+    if (bulkLogs.length > 0) {
+      tasks.push(API.fetchGAS('submitDailyWorkLogBulk', { date, teamName, bulkLogs }));
+    }
+    
+    if (tasks.length > 0) {
+      await Promise.all(tasks);
+      Utils.showToast('통합 저장(업무내용 및 슈퍼비전)이 완료되었습니다.', 'success');
+      // reload
+      setTimeout(() => generateReport(), 800);
+    } else {
+      Utils.showToast('저장할 내용이 없습니다.', 'info');
+    }
     Utils.hideLoading();
-    Utils.showToast('전체 및 개별 슈퍼비전이 안전하게 저장되었습니다.', 'success');
   } catch(e) {
     Utils.hideLoading();
-    Utils.showToast('슈퍼비전 저장 실패: ' + e.message, 'error');
+    Utils.showToast('통합 저장 실패: ' + e.message, 'error');
   }
 }
 

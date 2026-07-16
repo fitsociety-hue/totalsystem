@@ -87,6 +87,7 @@ function handleRequest(e, method) {
       // 업무 보고 관리
       case 'getDailyWorkLogs': result = getDailyWorkLogs(payload.date, payload.startDate, payload.endDate, payload.staffNames, payload.teamName); break;
       case 'submitDailyWorkLog': result = submitDailyWorkLog(payload.date, payload.workLogs, user); break;
+      case 'submitDailyWorkLogBulk': result = submitDailyWorkLogBulk(payload.date, payload.teamName, payload.bulkLogs, user); break;
       case 'getSupervision': result = getSupervision(payload.date, payload.startDate, payload.endDate, payload.teamName); break;
       case 'submitSupervision': result = submitSupervision(payload.date, payload.teamName, payload.supervisions, user); break;
       case 'getStaffs': result = getStaffs(payload.teamName); break;
@@ -1748,6 +1749,51 @@ function submitDailyWorkLog(date, workLogs, user) {
     newRows.push([
       logId, date, user.staffId, user.name, user.team, log.사업ID, log.사업명, log.업무내용
     ]);
+  });
+  
+  if (newRows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 8).setValues(newRows);
+    invalidateCache();
+  }
+  return true;
+}
+
+function submitDailyWorkLogBulk(date, teamName, bulkLogs, user) {
+  if (!user || (user.role !== '팀장' && user.role !== '관리자' && user.team !== teamName)) {
+    throw new Error('권한이 부족합니다.');
+  }
+  
+  const sheet = getSheet('업무일지_작성');
+  const vals = sheet.getDataRange().getValues();
+  
+  const targetStaffNames = bulkLogs.map(b => b.직원명);
+  if (targetStaffNames.length === 0) return true;
+  
+  if (vals.length > 1) {
+    for (let i = vals.length - 1; i >= 1; i--) {
+      if (formatDateStr(vals[i][1]) === date && vals[i][4] === teamName && targetStaffNames.includes(vals[i][3])) {
+        sheet.deleteRow(i + 1);
+      }
+    }
+  }
+  
+  const newRows = [];
+  const staffData = getSheetDataAsJSON('직원_마스터', true);
+  
+  bulkLogs.forEach(staffLog => {
+    const sName = staffLog.직원명;
+    const matchUser = staffData.find(s => s.이름 === sName && s.팀명 === teamName) || { 직원ID: 'UNKNOWN' };
+    
+    staffLog.logs.forEach(log => {
+      if (!log.업무내용) return;
+      const logId = 'LOG_' + new Date().getTime() + Math.floor(Math.random()*10000);
+      let pId = log.사업명 === '오늘의 종합 업무 내용' || log.사업명 === 'COMMON' ? 'COMMON' : 'VARIOUS';
+      let pName = log.사업명 === 'COMMON' ? '오늘의 종합 업무 내용' : log.사업명;
+      
+      newRows.push([
+        logId, date, matchUser.직원ID, sName, teamName, pId, pName, log.업무내용
+      ]);
+    });
   });
   
   if (newRows.length > 0) {
