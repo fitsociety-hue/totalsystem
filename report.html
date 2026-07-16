@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>업무 보고 - 강동어울림복지관</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    .report-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .report-tabs button {
+      flex: 1;
+      padding: 12px;
+      font-size: 15px;
+    }
+    .view-mode-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.4);
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .staff-select-card {
+      padding: 16px;
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.5);
+    }
+    .staff-checkbox-list {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .staff-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff;
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(0,0,0,0.1);
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .staff-checkbox-item input {
+      cursor: pointer;
+    }
+    .work-input-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .work-input-card {
+      padding: 20px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.04);
+    }
+    .preview-paper {
+      background: #ffffff;
+      color: #000000;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+      overflow-x: auto;
+      margin-top: 20px;
+    }
+    .preview-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .preview-header h1 {
+      font-size: 28px;
+      font-weight: bold;
+      text-decoration: none;
+      margin-bottom: 8px;
+    }
+    .preview-date-row {
+      display: flex;
+      justify-content: flex-end;
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 12px;
+    }
+    .table-report {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+    .table-report th, .table-report td {
+      border: 1px solid #333333;
+      padding: 6px 8px;
+      text-align: center;
+    }
+    .table-report th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    .align-left {
+      text-align: left !important;
+    }
+    .bg-light-blue {
+      background-color: #ebf2fa;
+    }
+    .preview-memo-section {
+      border: 1px solid #333333;
+      margin-top: -25px; /* table-report와의 간격 조정 */
+      border-top: none;
+      font-size: 13px;
+    }
+    .memo-row {
+      display: flex;
+      border-bottom: 1px solid #333333;
+    }
+    .memo-row:last-child {
+      border-bottom: none;
+    }
+    .memo-label {
+      width: 150px;
+      min-width: 150px;
+      background-color: #f2f2f2;
+      border-right: 1px solid #333333;
+      padding: 12px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .memo-content {
+      flex: 1;
+      padding: 12px;
+      white-space: pre-line;
+      text-align: left;
+    }
+    .supervision-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      resize: vertical;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <nav class="nav-sidebar">
+      <div class="logo">강동어울림복지관</div>
+      <a href="dashboard.html" class="nav-item">대시보드</a>
+      <a href="attendance.html" class="nav-item">출석체크</a>
+      <a href="members.html" class="nav-item">회원 관리</a>
+      <a href="programs.html" class="nav-item">사업 관리</a>
+      <a href="stats.html" class="nav-item">실적 현황</a>
+      <a href="report.html" class="nav-item active">업무 보고</a>
+    </nav>
+    
+    <main class="main-content">
+      <header class="topbar">
+        <div>업무 보고 일지 관리</div>
+        <div class="flex items-center gap-2">
+          <span id="topbar-team-name" class="badge badge-neutral"></span>
+          <span id="topbar-user-name"></span>
+          <button onclick="Auth.logout()" class="btn-ghost" style="padding: 4px 8px;">로그아웃</button>
+        </div>
+      </header>
+      
+      <div class="content-body">
+        <!-- 상단 탭: 작성모드 / 보고서조회모드 -->
+        <div class="report-tabs">
+          <button id="tab-write-mode" class="btn-primary" onclick="setMode('write')">✍️ 일일 업무 작성 (직원용)</button>
+          <button id="tab-view-mode" class="btn-secondary" onclick="setMode('view')">📂 업무일지 통합 조회 (팀장/보고용)</button>
+        </div>
+
+        <!-- 1. 작성 모드 섹션 -->
+        <div id="section-write" class="glass-card">
+          <div class="flex justify-between items-center mb-3">
+            <h3 style="margin: 0;">오늘의 업무일지 작성</h3>
+            <div class="flex items-center gap-2">
+              <label class="form-label" style="margin: 0; font-weight: bold;">작성 일자:</label>
+              <input type="date" id="write-date" class="form-input" style="max-width: 160px;">
+            </div>
+          </div>
+          
+          <div id="write-program-list" class="work-input-grid">
+            <p class="text-center">담당 사업을 불러오는 중...</p>
+          </div>
+          
+          <div class="mt-4 text-right">
+            <button class="btn-primary" onclick="saveDailyWorkLog()" style="padding: 12px 30px; font-size: 16px;">💾 작성 내용 저장하기</button>
+          </div>
+        </div>
+
+        <!-- 2. 조회 모드 섹션 -->
+        <div id="section-view" class="hidden">
+          <div class="glass-card mb-3">
+            <div class="view-mode-section">
+              <div class="filter-group">
+                <div>
+                  <label class="form-label" style="display:inline-block; margin-right:8px;">보고 구분</label>
+                  <select id="view-report-type" class="form-select" style="display:inline-block; width:150px;">
+                    <option value="daily">일일 업무일지</option>
+                    <option value="weekly">주간 업무일지</option>
+                    <option value="monthly">월간 업무일지</option>
+                  </select>
+                </div>
+                
+                <div id="date-range-picker" class="flex items-center gap-2">
+                  <input type="date" id="view-start-date" class="form-input" style="max-width: 140px;">
+                  <span id="date-range-tilde">~</span>
+                  <input type="date" id="view-end-date" class="form-input" style="max-width: 140px;">
+                </div>
+              </div>
+              
+              <button class="btn-primary" onclick="generateReport()" style="padding: 10px 20px;">⚡ 보고서 생성</button>
+            </div>
+
+            <!-- 직원 선택 카드 (팀장/관리자 전용) -->
+            <div id="staff-select-container" class="glass-card staff-select-card hidden">
+              <div class="flex justify-between items-center">
+                <span style="font-weight: bold; font-size: 14px;">취합 대상 팀원 선택</span>
+                <button class="btn-ghost" onclick="toggleAllStaff(true)" style="padding: 2px 6px; font-size: 12px;">모두 선택</button>
+              </div>
+              <div id="staff-checkbox-list" class="staff-checkbox-list">
+                <!-- Javascript가 채워 넣음 -->
+              </div>
+            </div>
+          </div>
+
+          <!-- 미리보기 영역 및 다운로드 -->
+          <div id="report-preview-container" class="hidden">
+            <div class="flex justify-between items-center mt-4">
+              <h3 style="margin: 0;">업무일지 인쇄 및 제출 미리보기</h3>
+              <button class="btn-success" onclick="downloadReportExcel()" style="background-color: var(--color-success); color:#fff;">🟢 엑셀 보고서 다운로드</button>
+            </div>
+            
+            <!-- 인쇄 양식 용지 -->
+            <div class="preview-paper" id="preview-paper">
+              <div class="preview-header">
+                <h1 id="preview-title">전략기획팀 업무일지</h1>
+              </div>
+              <div class="preview-date-row">
+                <span id="preview-date-str">2026-06-01 월</span>
+              </div>
+              
+              <table class="table-report" id="report-table">
+                <thead>
+                  <tr>
+                    <th rowspan="2" colspan="2">업무실적</th>
+                    <th colspan="3">목표</th>
+                    <th colspan="3" id="th-period-label">일계</th>
+                    <th colspan="3">월계</th>
+                    <th colspan="3">누계</th>
+                    <th rowspan="2">달성률<br>(%)</th>
+                  </tr>
+                  <tr>
+                    <th>실인원</th>
+                    <th>건수</th>
+                    <th>연인원</th>
+                    <th>실인원</th>
+                    <th>건수</th>
+                    <th>연인원</th>
+                    <th>실인원</th>
+                    <th>건수</th>
+                    <th>연인원</th>
+                    <th>실인원</th>
+                    <th>건수</th>
+                    <th>연인원</th>
+                  </tr>
+                </thead>
+                <tbody id="report-table-body">
+                  <!-- 동적 행 생성 -->
+                </tbody>
+              </table>
+
+              <div class="preview-memo-section">
+                <!-- 주요 업무 내용 -->
+                <div class="memo-row">
+                  <div class="memo-label">주요 업무 내용</div>
+                  <div class="memo-content" id="preview-work-content" style="padding: 0;">
+                    <!-- 직원별 업무내용 테이블 또는 텍스트가 바인딩됨 -->
+                  </div>
+                </div>
+                <!-- 슈퍼비전 -->
+                <div class="memo-row">
+                  <div class="memo-label">슈퍼비전</div>
+                  <div class="memo-content" id="preview-supervision" style="padding: 12px;">
+                    <!-- 슈퍼비전 내용 기입 또는 조회 -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/programs.js"></script>
+  <script src="js/report.js"></script>
+</body>
+</html>

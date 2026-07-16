@@ -84,6 +84,13 @@ function handleRequest(e, method) {
       case 'getPersonalStats': result = getPersonalStats(payload.staffId, payload.year, payload.periodType, payload.periodValue); break;
       case 'saveStatsMaster': result = saveStatsMaster(payload.year, payload.periodType, payload.periodValue, payload.statsData, user); break;
       
+      // 업무 보고 관리
+      case 'getDailyWorkLogs': result = getDailyWorkLogs(payload.date, payload.startDate, payload.endDate, payload.staffNames, payload.teamName); break;
+      case 'submitDailyWorkLog': result = submitDailyWorkLog(payload.date, payload.workLogs, user); break;
+      case 'getSupervision': result = getSupervision(payload.date, payload.startDate, payload.endDate, payload.teamName); break;
+      case 'submitSupervision': result = submitSupervision(payload.date, payload.teamName, payload.content, user); break;
+      case 'getStaffs': result = getStaffs(payload.teamName); break;
+      
       // 시스템 관리
       case 'setupAutoSyncTrigger': result = setupAutoSyncTrigger(); break;
       case 'setDeletePin': result = setDeletePin(payload.pin, user); break;
@@ -140,6 +147,8 @@ function getHeadersForSheet(sheetName) {
     case '출석_원장': return ['출석ID', '날짜', '사업ID', '사업명', '팀명', '이름', '출석여부', '건수', '입력방식', '입력자', '입력시각', '실인원', '연인원', '세부_직원', '세부_장애인', '세부_비장애인', '비고'];
     case '실적_집계': return ['팀명', '사업명', '년도', '월', '실인원', '건수', '연인원', '목표대비_실인원(%)', '목표대비_건수(%)', '목표대비_연인원(%)'];
     case '실적_마스터': return ['년도', '기준', '팀명', '사업명', '목표_실인원', '목표_건수', '목표_연인원', '실적_실인원', '실적_건수', '실적_연인원', '달성률_실인원', '달성률_건수', '달성률_연인원'];
+    case '업무일지_작성': return ['업무일지ID', '날짜', '직원ID', '직원명', '팀명', '사업ID', '사업명', '업무내용'];
+    case '업무일지_슈퍼비전': return ['슈퍼비전ID', '날짜', '팀명', '작성자ID', '작성자명', '슈퍼비전내용'];
     default: return [];
   }
 }
@@ -1533,4 +1542,266 @@ function saveStatsMaster(year, periodType, periodValue, statsData, user) {
   }
 
   return true;
+}
+
+// ==============================================================================
+// 업무 보고 일지 관리 로직
+// ==============================================================================
+
+function calculatePeriodStats(progs, startDateStr, endDateStr, attData, memberMap) {
+  const progIds = progs.map(p => p.사업ID);
+  const progMap = {};
+  progs.forEach(p => { progMap[p.사업ID] = p; });
+
+  const periodAtt = attData.filter(a => {
+    if (!progIds.includes(a.사업ID)) return false;
+    const dStr = formatDateStr(a.날짜);
+    return dStr >= startDateStr && dStr <= endDateStr;
+  });
+
+  const targetYear = new Date(endDateStr).getFullYear();
+  const yearStartStr = targetYear + '-01-01';
+  
+  const priorAtt = attData.filter(a => {
+    if (!progIds.includes(a.사업ID)) return false;
+    const dStr = formatDateStr(a.날짜);
+    return dStr >= yearStartStr && dStr < startDateStr;
+  });
+
+  const priorNamesByProg = {};
+  priorAtt.forEach(a => {
+    const p = progMap[a.사업ID];
+    if (!p) return;
+    const isMemberType = (p.실적유형 !== '건수' && p.실적유형 !== '건수만' && p.실적유형 !== '불특정 인원(실인원, 건수, 연인원)');
+    if (isMemberType && a.출석여부 === 'O' && a.이름 !== '건수입력용_무명' && a.이름 !== '불특정_인원_입력') {
+      if (!priorNamesByProg[a.사업ID]) priorNamesByProg[a.사업ID] = new Set();
+      priorNamesByProg[a.사업ID].add(a.이름);
+    }
+  });
+
+  const periodAttByProg = {};
+  periodAtt.forEach(a => {
+    if (!periodAttByProg[a.사업ID]) periodAttByProg[a.사업ID] = [];
+    periodAttByProg[a.사업ID].push(a);
+  });
+
+  const stats = {};
+  progs.forEach(p => {
+    const isMemberType = (p.실적유형 !== '건수' && p.실적유형 !== '건수만' && p.실적유형 !== '불특정 인원(실인원, 건수, 연인원)');
+    const isUnspecifiedType = (p.실적유형 === '불특정 인원(실인원, 건수, 연인원)');
+    
+    const pAtt = periodAttByProg[p.사업ID] || [];
+    const pPriorNames = priorNamesByProg[p.사업ID] || new Set();
+    const pNames = new Set();
+    let pCumReal = 0;
+    
+    pAtt.forEach(a => {
+      if (isMemberType && a.출석여부 === 'O' && a.이름 !== '건수입력용_무명' && a.이름 !== '불특정_인원_입력') {
+        if (!pPriorNames.has(a.이름)) {
+          pNames.add(a.이름);
+        }
+      }
+      if (isUnspecifiedType) pCumReal += Number(a.실인원) || 0;
+    });
+
+    let pAccum = 0;
+    let pCount = 0;
+
+    if (isMemberType) {
+      pAtt.forEach(a => { if (a.출석여부 === 'O') pAccum++; });
+      const pDaily = {};
+      pAtt.forEach(a => {
+        const dateStr = formatDateStr(a.날짜);
+        if (!pDaily[dateStr]) pDaily[dateStr] = [];
+        pDaily[dateStr].push(a);
+      });
+      Object.keys(pDaily).forEach(dateStr => {
+        const records = pDaily[dateStr];
+        let hasGroup = false;
+        let indvCount = 0;
+        records.forEach(a => {
+          if (a.출석여부 === 'O') {
+            const mType = memberMap[a.이름] || '개별';
+            if (mType === '그룹') hasGroup = true;
+            else indvCount++;
+          }
+        });
+        pCount += (hasGroup ? 1 : 0) + indvCount;
+      });
+    } else if (isUnspecifiedType) {
+      pAtt.forEach(a => {
+        pCount += Number(a.건수) || 0;
+        pAccum += Number(a.연인원) || 0;
+      });
+    } else {
+      pAtt.forEach(a => { pCount += Number(a.건수) || 0; });
+    }
+
+    stats[p.사업ID] = {
+      실인원: isMemberType ? pNames.size : (isUnspecifiedType ? pCumReal : 0),
+      건수: pCount,
+      연인원: isMemberType ? pAccum : (isUnspecifiedType ? pAccum : 0)
+    };
+  });
+
+  return stats;
+}
+
+function getDailyWorkLogs(date, startDate, endDate, staffNames, teamName) {
+  let sD = startDate || date;
+  let eD = endDate || date;
+  
+  if (!sD) {
+    const today = formatDateStr(new Date());
+    sD = today;
+    eD = today;
+  }
+  
+  const endObj = new Date(eD);
+  const targetYear = endObj.getFullYear();
+  const targetMonth = endObj.getMonth() + 1;
+  
+  const mStr = String(targetMonth).padStart(2, '0');
+  const monthStartStr = `${targetYear}-${mStr}-01`;
+  const yearStartStr = `${targetYear}-01-01`;
+
+  const progs = getSheetDataAsJSON('사업_마스터', true).filter(p => p.팀명 === teamName && p.상태 === '활성');
+  const attData = getSheetDataAsJSON('출석_원장', true);
+  
+  const memberMap = {};
+  getSheetDataAsJSON('회원_마스터', true).forEach(m => {
+    memberMap[m.이름] = m.구분 || '개별';
+  });
+
+  const periodStats = calculatePeriodStats(progs, sD, eD, attData, memberMap);
+  const monthStats = calculatePeriodStats(progs, monthStartStr, eD, attData, memberMap);
+  const yearStats = calculatePeriodStats(progs, yearStartStr, eD, attData, memberMap);
+
+  const statsList = progs.map(p => {
+    const pid = p.사업ID;
+    const pPeriod = periodStats[pid] || { 실인원: 0, 건수: 0, 연인원: 0 };
+    const pMonth = monthStats[pid] || { 실인원: 0, 건수: 0, 연인원: 0 };
+    const pYear = yearStats[pid] || { 실인원: 0, 건수: 0, 연인원: 0 };
+
+    const goalReal = Number(p.목표_실인원) || 0;
+    const goalCount = Number(p.목표_건수) || 0;
+    const goalAccum = Number(p.목표_연인원) || 0;
+
+    let achieveRate = 0;
+    const isMemberType = (p.실적유형 !== '건수' && p.실적유형 !== '건수만' && p.실적유형 !== '불특정 인원(실인원, 건수, 연인원)');
+    if (isMemberType) {
+      achieveRate = goalAccum > 0 ? Math.round((pYear.연인원 / goalAccum) * 100) : 0;
+    } else {
+      achieveRate = goalCount > 0 ? Math.round((pYear.건수 / goalCount) * 100) : 0;
+    }
+
+    return {
+      사업ID: pid,
+      사업명: p.사업명,
+      사업분류: p.사업분류,
+      세부사업분류: p.세부사업분류,
+      실적유형: p.실적유형,
+      목표: { 실인원: goalReal, 건수: goalCount, 연인원: goalAccum },
+      일계: pPeriod,
+      월계: pMonth,
+      누계: pYear,
+      달성률: achieveRate
+    };
+  });
+
+  const allLogs = getSheetDataAsJSON('업무일지_작성', true);
+  let filteredLogs = allLogs.filter(l => {
+    const dStr = formatDateStr(l.날짜);
+    return dStr >= sD && dStr <= eD && l.팀명 === teamName;
+  });
+
+  if (staffNames && staffNames.length > 0) {
+    filteredLogs = filteredLogs.filter(l => staffNames.includes(l.직원명));
+  }
+
+  const supervisionData = getSupervision(date, startDate, endDate, teamName);
+
+  return {
+    stats: statsList,
+    workLogs: filteredLogs,
+    supervision: supervisionData
+  };
+}
+
+function submitDailyWorkLog(date, workLogs, user) {
+  if (!user) throw new Error('인증 정보가 필요합니다.');
+  const sheet = getSheet('업무일지_작성');
+  const vals = sheet.getDataRange().getValues();
+  
+  if (vals.length > 1) {
+    for (let i = vals.length - 1; i >= 1; i--) {
+      if (formatDateStr(vals[i][1]) === date && String(vals[i][2]) === String(user.staffId)) {
+        sheet.deleteRow(i + 1);
+      }
+    }
+  }
+  
+  const newRows = [];
+  workLogs.forEach(log => {
+    if (!log.업무내용) return;
+    const logId = 'LOG_' + new Date().getTime() + Math.floor(Math.random()*1000);
+    newRows.push([
+      logId, date, user.staffId, user.name, user.team, log.사업ID, log.사업명, log.업무내용
+    ]);
+  });
+  
+  if (newRows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 8).setValues(newRows);
+    invalidateCache();
+  }
+  return true;
+}
+
+function getSupervision(date, startDate, endDate, teamName) {
+  const data = getSheetDataAsJSON('업무일지_슈퍼비전', true);
+  if (startDate && endDate) {
+    const filtered = data.filter(s => {
+      const d = formatDateStr(s.날짜);
+      return d >= startDate && d <= endDate && s.팀명 === teamName;
+    });
+    return filtered;
+  } else {
+    const res = data.find(s => formatDateStr(s.날짜) === date && s.팀명 === teamName);
+    return res || null;
+  }
+}
+
+function submitSupervision(date, teamName, content, user) {
+  if (!user || (user.role !== '팀장' && user.role !== '관리자')) {
+    throw new Error('슈퍼비전 작성 권한이 없습니다.');
+  }
+  const sheet = getSheet('업무일지_슈퍼비전');
+  const vals = sheet.getDataRange().getValues();
+  let foundRow = -1;
+  
+  if (vals.length > 1) {
+    for (let i = 1; i < vals.length; i++) {
+      if (formatDateStr(vals[i][1]) === date && vals[i][2] === teamName) {
+        foundRow = i + 1;
+        break;
+      }
+    }
+  }
+  
+  if (foundRow !== -1) {
+    sheet.getRange(foundRow, 4, 1, 3).setValues([[user.staffId, user.name, content]]);
+  } else {
+    const spId = 'SP_' + new Date().getTime();
+    sheet.appendRow([spId, date, teamName, user.staffId, user.name, content]);
+  }
+  invalidateCache();
+  return true;
+}
+
+function getStaffs(teamName) {
+  const data = getSheetDataAsJSON('직원_마스터', true);
+  if (teamName && teamName !== '전체' && teamName !== '관리자') {
+    return data.filter(s => s.팀명 === teamName && s.상태 !== '비활성');
+  }
+  return data.filter(s => s.상태 !== '비활성');
 }
