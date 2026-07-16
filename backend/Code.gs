@@ -88,7 +88,7 @@ function handleRequest(e, method) {
       case 'getDailyWorkLogs': result = getDailyWorkLogs(payload.date, payload.startDate, payload.endDate, payload.staffNames, payload.teamName); break;
       case 'submitDailyWorkLog': result = submitDailyWorkLog(payload.date, payload.workLogs, user); break;
       case 'getSupervision': result = getSupervision(payload.date, payload.startDate, payload.endDate, payload.teamName); break;
-      case 'submitSupervision': result = submitSupervision(payload.date, payload.teamName, payload.content, user); break;
+      case 'submitSupervision': result = submitSupervision(payload.date, payload.teamName, payload.supervisions, user); break;
       case 'getStaffs': result = getStaffs(payload.teamName); break;
       
       // 시스템 관리
@@ -148,7 +148,7 @@ function getHeadersForSheet(sheetName) {
     case '실적_집계': return ['팀명', '사업명', '년도', '월', '실인원', '건수', '연인원', '목표대비_실인원(%)', '목표대비_건수(%)', '목표대비_연인원(%)'];
     case '실적_마스터': return ['년도', '기준', '팀명', '사업명', '목표_실인원', '목표_건수', '목표_연인원', '실적_실인원', '실적_건수', '실적_연인원', '달성률_실인원', '달성률_건수', '달성률_연인원'];
     case '업무일지_작성': return ['업무일지ID', '날짜', '직원ID', '직원명', '팀명', '사업ID', '사업명', '업무내용'];
-    case '업무일지_슈퍼비전': return ['슈퍼비전ID', '날짜', '팀명', '작성자ID', '작성자명', '슈퍼비전내용'];
+    case '업무일지_슈퍼비전': return ['슈퍼비전ID', '날짜', '팀명', '작성자ID', '작성자명', '대상자명', '슈퍼비전내용'];
     default: return [];
   }
 }
@@ -1771,29 +1771,34 @@ function getSupervision(date, startDate, endDate, teamName) {
   }
 }
 
-function submitSupervision(date, teamName, content, user) {
+function submitSupervision(date, teamName, supervisions, user) {
   if (!user || (user.role !== '팀장' && user.role !== '관리자')) {
     throw new Error('슈퍼비전 작성 권한이 없습니다.');
   }
   const sheet = getSheet('업무일지_슈퍼비전');
   const vals = sheet.getDataRange().getValues();
-  let foundRow = -1;
   
   if (vals.length > 1) {
-    for (let i = 1; i < vals.length; i++) {
+    for (let i = vals.length - 1; i >= 1; i--) {
       if (formatDateStr(vals[i][1]) === date && vals[i][2] === teamName) {
-        foundRow = i + 1;
-        break;
+        sheet.deleteRow(i + 1);
       }
     }
   }
   
-  if (foundRow !== -1) {
-    sheet.getRange(foundRow, 4, 1, 3).setValues([[user.staffId, user.name, content]]);
-  } else {
-    const spId = 'SP_' + new Date().getTime();
-    sheet.appendRow([spId, date, teamName, user.staffId, user.name, content]);
+  const newRows = [];
+  supervisions.forEach(sp => {
+    if (!sp.내용) return;
+    const spId = 'SP_' + new Date().getTime() + Math.floor(Math.random()*1000);
+    newRows.push([
+      spId, date, teamName, user.staffId, user.name, sp.대상자명, sp.내용
+    ]);
+  });
+  
+  if (newRows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 7).setValues(newRows);
   }
+  
   invalidateCache();
   return true;
 }

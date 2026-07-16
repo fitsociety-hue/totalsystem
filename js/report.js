@@ -81,7 +81,6 @@ function renderStaffCheckboxes() {
 
   const user = Auth.getUser();
   teamStaffList.forEach(s => {
-    const isMe = s.이름 === user.name;
     listDiv.innerHTML += `
       <label class="staff-checkbox-item">
         <input type="checkbox" name="chk-staff" value="${s.이름}" checked>
@@ -151,12 +150,15 @@ async function loadWritePrograms() {
       programs = programs.filter(p => p.담당자 && p.담당자.includes(user.name));
     }
 
-    if (programs.length === 0) {
-      listContainer.innerHTML = '<p class="text-center text-sub">오늘 담당으로 지정된 사업이 없습니다. 사업 관리에서 담당자를 지정해주세요.</p>';
-      return;
-    }
+    // 2. Add COMMON worklog card at the first position
+    programs.unshift({
+      사업ID: 'COMMON',
+      사업명: '오늘의 종합 업무 내용',
+      실적유형: '공통',
+      사업분류: '공통'
+    });
 
-    // 2. Load existing logs & attendance for pre-filling
+    // 3. Load existing logs & attendance for pre-filling
     const logRes = await API.fetchGAS('getDailyWorkLogs', { date: dateStr, teamName: user.team, staffNames: [user.name] });
     const existingLogs = logRes.data.workLogs || [];
     
@@ -164,14 +166,17 @@ async function loadWritePrograms() {
     
     for (const p of programs) {
       const log = existingLogs.find(l => l.사업ID === p.사업ID) || { 업무내용: '' };
-      
-      // Fetch attendance to display/fill count or unspecified details
-      const attRes = await API.fetchGAS('getAttendanceSheet', { programId: p.사업ID, date: dateStr, forceRefresh: true });
-      const attList = attRes.data || [];
-      
       let rateHtml = '';
       
-      if (p.실적유형 === '건수') {
+      if (p.실적유형 === '공통') {
+        rateHtml = `
+          <div class="mb-2" style="font-size: 13px; color: var(--color-text-sub);">
+            오늘 하루 동안 진행하신 전반적인 업무 총평 및 종합 실적 내용을 자유롭게 작성해 주세요.
+          </div>
+        `;
+      } else if (p.실적유형 === '건수') {
+        const attRes = await API.fetchGAS('getAttendanceSheet', { programId: p.사업ID, date: dateStr, forceRefresh: true });
+        const attList = attRes.data || [];
         const anonymousAtt = attList.find(a => a.이름 === '건수입력용_무명');
         const countVal = anonymousAtt ? (anonymousAtt.건수 || 0) : 0;
         rateHtml = `
@@ -181,6 +186,8 @@ async function loadWritePrograms() {
           </div>
         `;
       } else if (p.실적유형 === '불특정 인원(실인원, 건수, 연인원)') {
+        const attRes = await API.fetchGAS('getAttendanceSheet', { programId: p.사업ID, date: dateStr, forceRefresh: true });
+        const attList = attRes.data || [];
         const unspecAtt = attList.find(a => a.이름 === '불특정_인원_입력') || {};
         rateHtml = `
           <div class="grid-cards mb-2" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
@@ -213,7 +220,8 @@ async function loadWritePrograms() {
           </div>
         `;
       } else {
-        // Member-based program (출석체크로 처리됨)
+        const attRes = await API.fetchGAS('getAttendanceSheet', { programId: p.사업ID, date: dateStr, forceRefresh: true });
+        const attList = attRes.data || [];
         const attendedCount = attList.filter(a => a.출석여부 === 'O').length;
         rateHtml = `
           <div class="mb-2" style="font-size: 13px; color: var(--color-primary-dark);">
@@ -232,8 +240,8 @@ async function loadWritePrograms() {
           ${rateHtml}
           
           <div class="form-group mb-0 mt-3">
-            <label class="form-label" style="font-size:13px; font-weight:bold;">일일 주요 업무 내용</label>
-            <textarea id="work-desc-${p.사업ID}" class="form-input" rows="3" placeholder="오늘 진행하신 세부 업무 내용을 상세히 적어주세요.">${log.업무내용 || ''}</textarea>
+            <label class="form-label" style="font-size:13px; font-weight:bold;">업무 내용 입력</label>
+            <textarea id="work-desc-${p.사업ID}" class="form-input" rows="3" placeholder="내용을 여기에 상세히 기재해 주세요.">${log.업무내용 || ''}</textarea>
           </div>
         </div>
       `;
@@ -345,7 +353,7 @@ async function generateReport() {
 
   try {
     Utils.showLoading();
-    const teamName = user.role === '관리자' ? '전략기획팀' : user.team; // Fallback to 전략기획팀 (for sample view)
+    const teamName = user.role === '관리자' ? '전략기획팀' : user.team;
     const params = { date: startDate, startDate, endDate, teamName, staffNames: selectedStaffs };
     
     const res = await API.fetchGAS('getDailyWorkLogs', params);
@@ -393,7 +401,8 @@ function renderReportPreview(type, startDate, endDate, teamName) {
   const tbody = document.getElementById('report-table-body');
   tbody.innerHTML = '';
   
-  const programs = currentReportData.stats || [];
+  // Filter out COMMON logic from stats table
+  const programs = (currentReportData.stats || []).filter(p => p.사업ID !== 'COMMON');
   
   if (programs.length === 0) {
     tbody.innerHTML = '<tr><td colspan="15">해당 기간의 실적이 없습니다.</td></tr>';
@@ -418,23 +427,22 @@ function renderReportPreview(type, startDate, endDate, teamName) {
         const isFirst = (idx === 0);
         
         // Sum grand totals
-        totalGoal.real += p.목표.실인원;
+        totalGoal.real += p.목표.realCount || p.목표.실인원 || 0;
         totalGoal.count += p.목표.count || p.목표.건수 || 0;
         totalGoal.accum += p.목표.accumCount || p.목표.연인원 || 0;
         
-        totalPeriod.real += p.일계.실인원;
-        totalPeriod.count += p.일계.건수;
-        totalPeriod.accum += p.일계.연인원;
+        totalPeriod.real += p.일계.실인원 || 0;
+        totalPeriod.count += p.일계.건수 || 0;
+        totalPeriod.accum += p.일계.연인원 || 0;
         
-        totalMonth.real += p.월계.실인원;
-        totalMonth.count += p.월계.건수;
-        totalMonth.accum += p.월계.연인원;
+        totalMonth.real += p.월계.실인원 || 0;
+        totalMonth.count += p.월계.건수 || 0;
+        totalMonth.accum += p.월계.연인원 || 0;
         
-        totalYear.real += p.누계.실인원;
-        totalYear.count += p.누계.건수;
-        totalYear.accum += p.누계.연인원;
+        totalYear.real += p.누계.실인원 || 0;
+        totalYear.count += p.누계.건수 || 0;
+        totalYear.accum += p.누계.연인원 || 0;
 
-        const isUnspecified = (p.실적유형 === '불특정 인원(실인원, 건수, 연인원)');
         const formatVal = (v) => v === 0 ? '' : Utils.formatNumber(v);
 
         tbody.innerHTML += `
@@ -443,8 +451,8 @@ function renderReportPreview(type, startDate, endDate, teamName) {
             <td class="align-left">${p.사업명}</td>
             
             <td>${formatVal(p.목표.실인원)}</td>
-            <td>${formatVal(p.목표.count || p.목표.건수 || 0)}</td>
-            <td>${formatVal(p.목표.accumCount || p.목표.연인원 || 0)}</td>
+            <td>${formatVal(p.목표.건수)}</td>
+            <td>${formatVal(p.목표.연인원)}</td>
             
             <td class="bg-light-blue">${formatVal(p.일계.실인원)}</td>
             <td class="bg-light-blue">${formatVal(p.일계.건수)}</td>
@@ -495,8 +503,6 @@ function renderReportPreview(type, startDate, endDate, teamName) {
   workContentDiv.innerHTML = '';
   
   const logs = currentReportData.workLogs || [];
-  
-  // Group logs by staffName
   const staffLogs = {};
   logs.forEach(l => {
     if (!staffLogs[l.직원명]) staffLogs[l.직원명] = [];
@@ -506,18 +512,29 @@ function renderReportPreview(type, startDate, endDate, teamName) {
   if (Object.keys(staffLogs).length === 0) {
     workContentDiv.innerHTML = '<div style="padding:15px; color:var(--color-text-sub);">작성된 주요 업무 내용이 없습니다.</div>';
   } else {
-    // Generate clean text list layout
     let html = '<table style="width:100%; border-collapse:collapse; border:none; margin:0;">';
     Object.keys(staffLogs).forEach((sName, sIdx) => {
       const items = staffLogs[sName];
-      const bulletText = items.map(it => {
-        return `[${it.사업명}] \n ${it.업무내용.split('\n').map(line => ' * ' + line.trim()).join('\n')}`;
-      }).join('\n\n');
+      
+      // Separate common log and business logs
+      const commonLog = items.find(it => it.사업ID === 'COMMON');
+      const businessLogs = items.filter(it => it.사업ID !== 'COMMON');
+      
+      let bulletText = '';
+      if (commonLog) {
+        bulletText += `[오늘의 종합 업무 내용]\n${commonLog.업무내용.split('\n').map(line => ' * ' + line.trim()).join('\n')}\n\n`;
+      }
+      
+      if (businessLogs.length > 0) {
+        bulletText += businessLogs.map(it => {
+          return `[${it.사업명}]\n${it.업무내용.split('\n').map(line => ' * ' + line.trim()).join('\n')}`;
+        }).join('\n\n');
+      }
       
       html += `
         <tr style="border-bottom: 1px solid #333333; ${sIdx === Object.keys(staffLogs).length - 1 ? 'border-bottom:none;' : ''}">
           <td style="width:149px; border:none; border-right:1px solid #333333; background-color:#fafafa; font-weight:bold; vertical-align:middle; text-align:center; padding:12px;">${sName}</td>
-          <td style="border:none; text-align:left; padding:12px; white-space:pre-line; line-height:1.6; font-size:12px;">${bulletText}</td>
+          <td style="border:none; text-align:left; padding:12px; white-space:pre-line; line-height:1.6; font-size:12px;">${bulletText.trim()}</td>
         </tr>
       `;
     });
@@ -525,46 +542,110 @@ function renderReportPreview(type, startDate, endDate, teamName) {
     workContentDiv.innerHTML = html;
   }
 
-  // Draw Supervision
+  // Draw Supervision (General & Individual)
   const supervisionDiv = document.getElementById('preview-supervision');
   const user = Auth.getUser();
   
-  let spText = '';
-  if (currentReportData.supervision) {
-    if (Array.isArray(currentReportData.supervision)) {
-      spText = currentReportData.supervision.map(s => `[${Utils.formatDate(s.날짜)} - ${s.작성자명}]: \n${s.슈퍼비전내용}`).join('\n\n');
-    } else {
-      spText = currentReportData.supervision.슈퍼비전내용 || '';
-    }
+  // Selected staff list for individual supervision inputs
+  const staffChks = document.getElementsByName('chk-staff');
+  const selectedStaffs = [];
+  staffChks.forEach(c => { if (c.checked) selectedStaffs.push(c.value); });
+  
+  const savedSupervisions = currentReportData.supervision || [];
+  
+  // Extract total supervision text
+  let totalSpText = '';
+  if (Array.isArray(savedSupervisions)) {
+    const totalSp = savedSupervisions.find(s => s.대상자명 === '전체');
+    if (totalSp) totalSpText = totalSp.슈퍼비전내용 || '';
+  } else if (savedSupervisions && typeof savedSupervisions === 'object') {
+    totalSpText = savedSupervisions.슈퍼비전내용 || ''; // fallback
   }
 
   if (user.role === '팀장' || user.role === '관리자') {
-    // Allow editing supervision for the single day
     if (type === 'daily') {
-      supervisionDiv.innerHTML = `
-        <textarea id="supervision-input" class="supervision-textarea" placeholder="팀원 업무일지에 대한 피드백 및 지시사항(슈퍼비전)을 남겨주세요.">${spText}</textarea>
-        <div style="text-align: right; margin-top:8px;">
-          <button class="btn-primary" onclick="saveSupervision('${startDate}', '${teamName}')" style="padding: 6px 16px; font-size:13px;">슈퍼비전 저장</button>
+      // Build supervision edit area
+      let html = `
+        <div style="margin-bottom: 16px;">
+          <label style="font-weight:bold; font-size:13px; color:var(--color-primary-dark); display:block; margin-bottom:6px;">📢 팀 전체 대상 슈퍼비전</label>
+          <textarea id="supervision-total" class="supervision-textarea" style="min-height: 80px;" placeholder="팀 전체에게 일괄 제공할 피드백 및 공지사항을 입력하세요.">${totalSpText}</textarea>
         </div>
       `;
+      
+      // Individual inputs for each selected staff
+      selectedStaffs.forEach(sName => {
+        // Skip supervisor's own individual supervision if wanted, but here we provide it for all selected
+        let indvSpText = '';
+        if (Array.isArray(savedSupervisions)) {
+          const match = savedSupervisions.find(s => s.대상자명 === sName);
+          if (match) indvSpText = match.슈퍼비전내용 || '';
+        }
+        
+        html += `
+          <div style="margin-bottom: 12px; padding: 10px; background: rgba(0,0,0,0.01); border-radius: 8px; border: 1px solid rgba(0,0,0,0.04);">
+            <label style="font-weight:bold; font-size:12px; display:block; margin-bottom:4px;">👤 ${sName}님 개별 슈퍼비전</label>
+            <textarea class="supervision-textarea individual-supervision-input" data-staff="${sName}" style="min-height: 60px;" placeholder="${sName}님에게 전달할 개별 슈퍼비전을 입력하세요.">${indvSpText}</textarea>
+          </div>
+        `;
+      });
+      
+      html += `
+        <div style="text-align: right; margin-top:8px;">
+          <button class="btn-primary" onclick="saveAllSupervisions('${startDate}', '${teamName}')" style="padding: 8px 20px; font-size:13px;">💾 슈퍼비전 전체 저장</button>
+        </div>
+      `;
+      supervisionDiv.innerHTML = html;
     } else {
-      supervisionDiv.innerHTML = `<div style="white-space:pre-line; line-height:1.6;">${spText || '지정된 슈퍼비전 사항이 없습니다.'}</div>`;
+      // Weekly/Monthly view mode (Read-only 취합)
+      let html = '';
+      if (Array.isArray(savedSupervisions) && savedSupervisions.length > 0) {
+        savedSupervisions.forEach(s => {
+          html += `<strong>[대상: ${s.대상자명 || '전체'} / 작성: ${s.작성자명}]</strong>\n${s.슈퍼비전내용}\n\n`;
+        });
+      } else {
+        html = '지정된 슈퍼비전 사항이 없습니다.';
+      }
+      supervisionDiv.innerHTML = `<div style="white-space:pre-line; line-height:1.6;">${html}</div>`;
     }
   } else {
-    supervisionDiv.innerHTML = `<div style="white-space:pre-line; line-height:1.6;">${spText || '지정된 슈퍼비전 사항이 없습니다.'}</div>`;
+    // Member view mode (Read-only)
+    let html = '';
+    if (Array.isArray(savedSupervisions) && savedSupervisions.length > 0) {
+      savedSupervisions.forEach(s => {
+        html += `<strong>[대상: ${s.대상자명 || '전체'} / 작성: ${s.작성자명}]</strong>\n${s.슈퍼비전내용}\n\n`;
+      });
+    } else {
+      html = '지정된 슈퍼비전 사항이 없습니다.';
+    }
+    supervisionDiv.innerHTML = `<div style="white-space:pre-line; line-height:1.6;">${html}</div>`;
   }
 }
 
-window.saveSupervision = async function(date, teamName) {
-  const input = document.getElementById('supervision-input');
-  if (!input) return;
-  const content = input.value.trim();
+window.saveAllSupervisions = async function(date, teamName) {
+  const supervisions = [];
   
+  const totalEl = document.getElementById('supervision-total');
+  if (totalEl) {
+    const txt = totalEl.value.trim();
+    if (txt) {
+      supervisions.push({ 대상자명: '전체', 내용: txt });
+    }
+  }
+  
+  const indvInputs = document.querySelectorAll('.individual-supervision-input');
+  indvInputs.forEach(input => {
+    const sName = input.getAttribute('data-staff');
+    const txt = input.value.trim();
+    if (txt) {
+      supervisions.push({ 대상자명: sName, 내용: txt });
+    }
+  });
+
   try {
     Utils.showLoading();
-    await API.fetchGAS('submitSupervision', { date, teamName, content });
+    await API.fetchGAS('submitSupervision', { date, teamName, supervisions });
     Utils.hideLoading();
-    Utils.showToast('슈퍼비전이 등록되었습니다.', 'success');
+    Utils.showToast('전체 및 개별 슈퍼비전이 안전하게 저장되었습니다.', 'success');
   } catch(e) {
     Utils.hideLoading();
     Utils.showToast('슈퍼비전 저장 실패: ' + e.message, 'error');
@@ -602,7 +683,6 @@ window.downloadReportExcel = function() {
 
   const wb = XLSX.utils.book_new();
   
-  // Layout AOA build
   const titleRow = [reportTitle];
   const dateRow = [null, null, null, null, null, null, null, null, null, null, null, null, null, periodStr];
   
@@ -618,17 +698,18 @@ window.downloadReportExcel = function() {
   ];
 
   const merges = [
-    { s: {r:0, c:0}, e: {r:0, c:14} }, // Title merge
-    { s: {r:1, c:11}, e: {r:1, c:14} }, // Date str merge
-    { s: {r:3, c:0}, e: {r:4, c:1} }, // 업무실적 th merge
-    { s: {r:3, c:2}, e: {r:3, c:4} }, // 목표 th merge
-    { s: {r:3, c:5}, e: {r:3, c:7} }, // 일계 th merge
-    { s: {r:3, c:8}, e: {r:3, c:10} }, // 월계 th merge
-    { s: {r:3, c:11}, e: {r:3, c:13} }, // 누계 th merge
-    { s: {r:3, c:14}, e: {r:4, c:14} }  // 달성률 th merge
+    { s: {r:0, c:0}, e: {r:0, c:14} }, 
+    { s: {r:1, c:11}, e: {r:1, c:14} }, 
+    { s: {r:3, c:0}, e: {r:4, c:1} }, 
+    { s: {r:3, c:2}, e: {r:3, c:4} }, 
+    { s: {r:3, c:5}, e: {r:3, c:7} }, 
+    { s: {r:3, c:8}, e: {r:3, c:10} }, 
+    { s: {r:3, c:11}, e: {r:3, c:13} }, 
+    { s: {r:3, c:14}, e: {r:4, c:14} }  
   ];
 
-  const programs = currentReportData.stats || [];
+  // Filter out COMMON logic from excel stats
+  const programs = (currentReportData.stats || []).filter(p => p.사업ID !== 'COMMON');
   
   // Group programs by '사업분류'
   const grouped = {};
@@ -647,34 +728,31 @@ window.downloadReportExcel = function() {
 
   Object.keys(grouped).forEach(cat => {
     const items = grouped[cat];
-    
-    // Group category th merge mapping
     merges.push({ s: {r: currentRowIdx, c:0}, e: {r: currentRowIdx + items.length - 1, c:0} });
 
     items.forEach((p, idx) => {
-      // Sum totals
-      totalGoal.real += p.목표.실인원;
-      totalGoal.count += p.목표.count || p.목표.건수 || 0;
-      totalGoal.accum += p.목표.accumCount || p.목표.연인원 || 0;
+      totalGoal.real += p.목표.실인원 || 0;
+      totalGoal.count += p.목표.건수 || 0;
+      totalGoal.accum += p.목표.연인원 || 0;
       
-      totalPeriod.real += p.일계.실인원;
-      totalPeriod.count += p.일계.건수;
-      totalPeriod.accum += p.일계.연인원;
+      totalPeriod.real += p.일계.실인원 || 0;
+      totalPeriod.count += p.일계.건수 || 0;
+      totalPeriod.accum += p.일계.연인원 || 0;
       
-      totalMonth.real += p.월계.실인원;
-      totalMonth.count += p.월계.건수;
-      totalMonth.accum += p.월계.연인원;
+      totalMonth.real += p.월계.실인원 || 0;
+      totalMonth.count += p.월계.건수 || 0;
+      totalMonth.accum += p.월계.연인원 || 0;
       
-      totalYear.real += p.누계.실인원;
-      totalYear.count += p.누계.건수;
-      totalYear.accum += p.누계.연인원;
+      totalYear.real += p.누계.실인원 || 0;
+      totalYear.count += p.누계.건수 || 0;
+      totalYear.accum += p.누계.연인원 || 0;
 
       aoa.push([
         cat,
         p.사업명,
         p.목표.실인원 || 0,
-        p.목표.count || p.목표.건수 || 0,
-        p.목표.accumCount || p.목표.연인원 || 0,
+        p.목표.건수 || 0,
+        p.목표.연인원 || 0,
         p.일계.실인원 || 0,
         p.일계.건수 || 0,
         p.일계.연인원 || 0,
@@ -726,9 +804,18 @@ window.downloadReportExcel = function() {
   } else {
     Object.keys(staffLogs).forEach(sName => {
       const items = staffLogs[sName];
-      const bulletText = items.map(it => `[${it.사업명}] ${it.업무내용}`).join('\n');
+      const commonLog = items.find(it => it.사업ID === 'COMMON');
+      const businessLogs = items.filter(it => it.사업ID !== 'COMMON');
       
-      aoa.push([sName, bulletText]);
+      let bulletText = '';
+      if (commonLog) {
+        bulletText += `[오늘의 종합 업무 내용] ${commonLog.업무내용}\n`;
+      }
+      if (businessLogs.length > 0) {
+        bulletText += businessLogs.map(it => `[${it.사업명}] ${it.업무내용}`).join('\n');
+      }
+      
+      aoa.push([sName, bulletText.trim()]);
       merges.push({ s: {r: currentRowIdx, c:1}, e: {r: currentRowIdx, c:14} });
       currentRowIdx++;
     });
@@ -739,13 +826,12 @@ window.downloadReportExcel = function() {
   merges.push({ s: {r: currentRowIdx, c:0}, e: {r: currentRowIdx, c:14} });
   currentRowIdx++;
 
-  let spText = '지정된 슈퍼비전 사항이 없습니다.';
-  if (currentReportData.supervision) {
-    if (Array.isArray(currentReportData.supervision)) {
-      spText = currentReportData.supervision.map(s => `[${Utils.formatDate(s.날짜)} - ${s.작성자명}]: \n${s.슈퍼비전내용}`).join('\n\n');
-    } else {
-      spText = currentReportData.supervision.슈퍼비전내용 || '';
-    }
+  const savedSupervisions = currentReportData.supervision || [];
+  let spText = '';
+  if (Array.isArray(savedSupervisions) && savedSupervisions.length > 0) {
+    spText = savedSupervisions.map(s => `[대상: ${s.대상자명 || '전체'} / 작성자: ${s.작성자명}]: ${s.슈퍼비전내용}`).join('\n');
+  } else {
+    spText = '지정된 슈퍼비전 사항이 없습니다.';
   }
   
   aoa.push(['슈퍼비전 내용', spText]);
@@ -756,12 +842,12 @@ window.downloadReportExcel = function() {
 
   // Set Widths
   ws['!cols'] = [
-    {wch: 15}, {wch: 30}, // Business names
-    {wch: 8}, {wch: 8}, {wch: 8}, // Target
-    {wch: 8}, {wch: 8}, {wch: 8}, // Period
-    {wch: 8}, {wch: 8}, {wch: 8}, // Month
-    {wch: 8}, {wch: 8}, {wch: 8}, // Accum
-    {wch: 12} // Achieve rate
+    {wch: 15}, {wch: 30}, 
+    {wch: 8}, {wch: 8}, {wch: 8}, 
+    {wch: 8}, {wch: 8}, {wch: 8}, 
+    {wch: 8}, {wch: 8}, {wch: 8}, 
+    {wch: 8}, {wch: 8}, {wch: 8}, 
+    {wch: 12} 
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, '업무일지');

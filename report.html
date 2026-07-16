@@ -158,6 +158,35 @@
       font-size: 13px;
       resize: vertical;
     }
+    @media (max-width: 768px) {
+      .report-tabs {
+        flex-direction: column;
+      }
+      .view-mode-section {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
+      .view-mode-section button {
+        width: 100%;
+      }
+      .memo-row {
+        flex-direction: column;
+      }
+      .memo-label {
+        width: 100% !important;
+        min-width: 100% !important;
+        border-right: none !important;
+        border-bottom: 1px solid #333333;
+        padding: 8px !important;
+      }
+      .preview-paper {
+        padding: 16px !important;
+      }
+      .preview-header h1 {
+        font-size: 20px !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -191,10 +220,10 @@
 
         <!-- 1. 작성 모드 섹션 -->
         <div id="section-write" class="glass-card">
-          <div class="flex justify-between items-center mb-3">
-            <h3 style="margin: 0;">오늘의 업무일지 작성</h3>
-            <div class="flex items-center gap-2">
-              <label class="form-label" style="margin: 0; font-weight: bold;">작성 일자:</label>
+          <div class="flex justify-between items-center mb-3 flex-mobile-col">
+            <h3 style="margin: 0; white-space: nowrap;">오늘의 업무일지 작성</h3>
+            <div class="flex items-center gap-2" style="justify-content: flex-end; width: 100%;">
+              <label class="form-label" style="margin: 0; font-weight: bold; white-space: nowrap; flex-shrink: 0;">작성 일자:</label>
               <input type="date" id="write-date" class="form-input" style="max-width: 160px;">
             </div>
           </div>
