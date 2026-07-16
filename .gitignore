@@ -1,0 +1,16 @@
+# Temporary files
+scratch/
+.gemini/
+.vs/
+.vscode/
+
+# OS specific files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log

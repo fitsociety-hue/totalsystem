@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>강동어울림복지관 출석부</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      align-items: center;
+      justify-content: center;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      margin: 20px;
+    }
+    .login-title {
+      text-align: center;
+      margin-bottom: 24px;
+      color: var(--color-primary-dark);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="glass-card login-card">
+    <div class="login-title">
+      <h2>강동어울림복지관 출석부</h2>
+      <p style="font-size: 14px; color: var(--color-text-sub); margin-top: 5px;">관리자 및 직원 로그인</p>
+    </div>
+    
+    <div id="login-container">
+      <div class="flex gap-1 mb-3" id="login-tabs">
+        <button type="button" class="btn-primary flex-1" id="btn-tab-staff" onclick="switchLoginTab('staff')">직원 로그인</button>
+        <button type="button" class="btn-secondary flex-1" id="btn-tab-admin" onclick="switchLoginTab('admin')">관리자 로그인</button>
+      </div>
+
+      <!-- 직원 로그인 -->
+      <form id="login-form-staff">
+        <div class="form-group">
+          <label class="form-label">소속 팀</label>
+          <select id="staff-team" class="form-select" required>
+            <option value="">팀 선택</option>
+            <option value="지역연계팀">지역연계팀</option>
+            <option value="맞춤지원팀">맞춤지원팀</option>
+            <option value="건강문화팀">건강문화팀</option>
+            <option value="성장지원팀">성장지원팀</option>
+            <option value="전략기획팀">전략기획팀</option>
+            <option value="미래경영팀">미래경영팀</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">이름</label>
+          <input type="text" id="staff-name" class="form-input" placeholder="이름을 입력하세요" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">비밀번호</label>
+          <input type="password" id="staff-password" class="form-input" placeholder="비밀번호 숫자 4자리" pattern="\d{4}" maxlength="4" inputmode="numeric" title="비밀번호 4자리 숫자를 입력해주세요." required>
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">로그인</button>
+      </form>
+
+      <!-- 관리자 로그인 -->
+      <form id="login-form-admin" class="hidden">
+        <div class="form-group">
+          <label class="form-label">관리자 아이디(이름)</label>
+          <input type="text" id="admin-name" class="form-input" placeholder="아이디를 입력하세요" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">비밀번호</label>
+          <input type="password" id="admin-password" class="form-input" placeholder="비밀번호를 입력하세요" required>
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">관리자 로그인</button>
+      </form>
+
+      <div class="text-center mt-3">
+        <a href="#" class="btn-ghost" style="font-size: 14px; text-decoration: none;" onclick="toggleAuthMode(true)">회원가입 하기</a>
+      </div>
+    </div>
+
+    <div id="register-container" class="hidden">
+      <form id="register-form">
+        <div class="form-group">
+          <label class="form-label">소속 팀</label>
+          <select id="reg-team" class="form-select" required>
+            <option value="">팀 선택</option>
+            <option value="지역연계팀">지역연계팀</option>
+            <option value="맞춤지원팀">맞춤지원팀</option>
+            <option value="건강문화팀">건강문화팀</option>
+            <option value="성장지원팀">성장지원팀</option>
+            <option value="전략기획팀">전략기획팀</option>
+            <option value="미래경영팀">미래경영팀</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">이름</label>
+          <input type="text" id="reg-name" class="form-input" placeholder="이름을 입력하세요" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">직위</label>
+          <select id="reg-role" class="form-select" required>
+            <option value="팀원">팀원</option>
+            <option value="팀장">팀장</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">비밀번호</label>
+          <input type="password" id="reg-password" class="form-input" placeholder="비밀번호 숫자 4자리" pattern="\d{4}" maxlength="4" inputmode="numeric" title="비밀번호 4자리 숫자를 입력해주세요." required>
+        </div>
+        <button type="submit" class="btn-secondary" style="width: 100%; margin-top: 10px;">가입하기</button>
+      </form>
+      <div class="text-center mt-3">
+        <a href="#" class="btn-ghost" style="font-size: 14px; text-decoration: none;" onclick="toggleAuthMode(false)">로그인으로 돌아가기</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // If already logged in, redirect to dashboard
+    if (localStorage.getItem('jwt_token')) {
+      window.location.href = 'dashboard.html';
+    }
+
+    function toggleAuthMode(isRegister) {
+      if (isRegister) {
+        document.getElementById('login-container').classList.add('hidden');
+        document.getElementById('register-container').classList.remove('hidden');
+      } else {
+        document.getElementById('login-container').classList.remove('hidden');
+        document.getElementById('register-container').classList.add('hidden');
+      }
+    }
+
+    function switchLoginTab(type) {
+      if (type === 'staff') {
+        document.getElementById('login-form-staff').classList.remove('hidden');
+        document.getElementById('login-form-admin').classList.add('hidden');
+        document.getElementById('btn-tab-staff').className = 'btn-primary flex-1';
+        document.getElementById('btn-tab-admin').className = 'btn-secondary flex-1';
+      } else {
+        document.getElementById('login-form-staff').classList.add('hidden');
+        document.getElementById('login-form-admin').classList.remove('hidden');
+        document.getElementById('btn-tab-staff').className = 'btn-secondary flex-1';
+        document.getElementById('btn-tab-admin').className = 'btn-primary flex-1';
+      }
+    }
+
+    document.getElementById('login-form-staff').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const team = document.getElementById('staff-team').value;
+      const name = document.getElementById('staff-name').value;
+      const password = document.getElementById('staff-password').value;
+      
+      const success = await Auth.login(team, name, password);
+      if (success) window.location.href = 'dashboard.html';
+    });
+
+    document.getElementById('login-form-admin').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('admin-name').value;
+      const password = document.getElementById('admin-password').value;
+      
+      const success = await Auth.login('관리자', name, password);
+      if (success) window.location.href = 'dashboard.html';
+    });
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const team = document.getElementById('reg-team').value;
+      const name = document.getElementById('reg-name').value;
+      const role = document.getElementById('reg-role').value;
+      const password = document.getElementById('reg-password').value;
+      
+      const success = await Auth.register(team, name, password, role);
+      if (success) {
+        toggleAuthMode(false);
+      }
+    });
+  </script>
+</body>
+</html>
