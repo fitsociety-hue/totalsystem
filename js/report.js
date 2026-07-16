@@ -17,6 +17,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set report change event
   document.getElementById('view-report-type').addEventListener('change', handleReportTypeChange);
   document.getElementById('write-date').addEventListener('change', loadWritePrograms);
+  document.getElementById('admin-view-team').addEventListener('change', () => {
+    initStaffSelection();
+    if (!document.getElementById('section-view').classList.contains('hidden')) {
+      generateReport();
+    }
+  });
+
+  // Load Admin Teams Dropdown
+  const user = Auth.getUser();
+  if (user.role === '관리자') {
+    document.getElementById('admin-team-select-wrapper').style.display = 'inline-block';
+    try {
+      const res = await API.fetchGAS('getTeams');
+      const teams = res.data || [];
+      const select = document.getElementById('admin-view-team');
+      select.innerHTML = '';
+      teams.forEach(t => {
+        select.innerHTML += `<option value="${t}">${t}</option>`;
+      });
+    } catch(e) {
+      console.error('Error fetching teams:', e);
+    }
+  }
 
   // Initialize view mode UI
   handleReportTypeChange();
@@ -57,7 +80,7 @@ async function initStaffSelection() {
   if (user.role === '팀장' || user.role === '관리자') {
     container.classList.remove('hidden');
     try {
-      const teamName = user.role === '관리자' ? '' : user.team;
+      const teamName = user.role === '관리자' ? document.getElementById('admin-view-team').value : user.team;
       const res = await API.fetchGAS('getStaffs', { teamName });
       teamStaffList = res.data || [];
       renderStaffCheckboxes();
@@ -353,7 +376,7 @@ async function generateReport() {
 
   try {
     Utils.showLoading();
-    const teamName = user.role === '관리자' ? '전략기획팀' : user.team;
+    const teamName = user.role === '관리자' ? document.getElementById('admin-view-team').value : user.team;
     const params = { date: startDate, startDate, endDate, teamName, staffNames: selectedStaffs };
     
     const res = await API.fetchGAS('getDailyWorkLogs', params);
@@ -706,7 +729,7 @@ window.downloadReportExcel = function() {
   const startDate = document.getElementById('view-start-date').value;
   const endDate = document.getElementById('view-end-date').value;
   const user = Auth.getUser();
-  const teamName = user.role === '관리자' ? '전략기획팀' : user.team;
+  const teamName = user.role === '관리자' ? document.getElementById('admin-view-team').value : user.team;
 
   let reportTitle = '';
   let periodStr = '';

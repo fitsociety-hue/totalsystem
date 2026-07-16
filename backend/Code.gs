@@ -90,6 +90,7 @@ function handleRequest(e, method) {
       case 'submitDailyWorkLogBulk': result = submitDailyWorkLogBulk(payload.date, payload.teamName, payload.bulkLogs, user); break;
       case 'getSupervision': result = getSupervision(payload.date, payload.startDate, payload.endDate, payload.teamName); break;
       case 'submitSupervision': result = submitSupervision(payload.date, payload.teamName, payload.supervisions, user); break;
+      case 'getTeams': result = getTeams(); break;
       case 'getStaffs': result = getStaffs(payload.teamName); break;
       
       // 시스템 관리
@@ -1855,4 +1856,10 @@ function getStaffs(teamName) {
     return data.filter(s => s.팀명 === teamName && s.상태 !== '비활성');
   }
   return data.filter(s => s.상태 !== '비활성');
+}
+
+function getTeams() {
+  const data = getSheetDataAsJSON('사업_마스터', true);
+  const teams = [...new Set(data.map(p => p.팀명).filter(t => t))];
+  return teams;
 }
