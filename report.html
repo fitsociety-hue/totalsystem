@@ -187,6 +187,31 @@
         font-size: 20px !important;
       }
     }
+    @media print {
+      body * { visibility: hidden; }
+      #preview-paper, #preview-paper * { visibility: visible; }
+      #preview-paper {
+        position: absolute;
+        left: 0; top: 0;
+        width: 100%;
+        padding: 20px;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      .edit-worklog-input {
+        border: none !important;
+        background: transparent !important;
+        resize: none !important;
+        overflow: hidden !important;
+      }
+      .supervision-textarea {
+        border: none !important;
+        background: transparent !important;
+        resize: none !important;
+        overflow: hidden !important;
+      }
+      button, .btn-primary, .btn-success, .btn-ghost { display: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -246,6 +271,17 @@
                   <label class="form-label" style="display:inline-block; margin-right:8px;">사업팀</label>
                   <select id="admin-view-team" class="form-select" style="display:inline-block; width:150px;"></select>
                 </div>
+                <div id="admin-view-mode-wrapper" style="display:none; margin-right:8px;">
+                  <label class="form-label" style="display:inline-block; margin-right:8px;">조회 유형</label>
+                  <select id="admin-view-mode" class="form-select" style="display:inline-block; width:160px;">
+                    <option value="team">사업팀별 조회</option>
+                    <option value="individual">직원 개인별 조회</option>
+                  </select>
+                </div>
+                <div id="admin-staff-select-wrapper" style="display:none; margin-right:8px;">
+                  <label class="form-label" style="display:inline-block; margin-right:8px;">직원 선택</label>
+                  <select id="admin-staff-select" class="form-select" style="display:inline-block; width:150px;"></select>
+                </div>
                 <div>
                   <label class="form-label" style="display:inline-block; margin-right:8px;">보고 구분</label>
                   <select id="view-report-type" class="form-select" style="display:inline-block; width:150px;">
@@ -281,7 +317,10 @@
           <div id="report-preview-container" class="hidden">
             <div class="flex justify-between items-center mt-4">
               <h3 style="margin: 0;">업무일지 인쇄 및 제출 미리보기</h3>
-              <button class="btn-success" onclick="downloadReportExcel()" style="background-color: var(--color-success); color:#fff;">🟢 엑셀 보고서 다운로드</button>
+              <div class="flex items-center gap-2">
+                <button class="btn-primary" onclick="downloadReportPDF()" style="padding: 8px 16px;">📄 PDF 출력</button>
+                <button class="btn-success" onclick="downloadReportExcel()" style="background-color: var(--color-success); color:#fff;">🟢 엑셀 보고서 다운로드</button>
+              </div>
             </div>
             
             <!-- 인쇄 양식 용지 -->

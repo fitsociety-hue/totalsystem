@@ -10,24 +10,46 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Set default date picker values
   const todayStr = Utils.formatDate(new Date());
-  document.getElementById('write-date').value = todayStr;
+  const writeDateEl = document.getElementById('write-date');
+  if (writeDateEl) writeDateEl.value = todayStr;
   document.getElementById('view-start-date').value = todayStr;
   document.getElementById('view-end-date').value = todayStr;
 
   // Set report change event
   document.getElementById('view-report-type').addEventListener('change', handleReportTypeChange);
-  document.getElementById('write-date').addEventListener('change', loadWritePrograms);
-  document.getElementById('admin-view-team').addEventListener('change', () => {
-    initStaffSelection();
-    if (!document.getElementById('section-view').classList.contains('hidden')) {
-      generateReport();
-    }
+  if (writeDateEl) writeDateEl.addEventListener('change', loadWritePrograms);
+
+  // Admin view-mode change handler
+  document.getElementById('admin-view-mode').addEventListener('change', handleAdminViewModeChange);
+
+  // Admin team change handler
+  document.getElementById('admin-view-team').addEventListener('change', async () => {
+    await loadAdminStaffDropdown();
+    await initStaffSelection();
   });
 
-  // Load Admin Teams Dropdown
+  // Admin individual staff change handler
+  document.getElementById('admin-staff-select').addEventListener('change', () => {
+    // auto-generate on staff change if already viewing
+    if (currentReportData) generateReport();
+  });
+
   const user = Auth.getUser();
+
   if (user.role === '관리자') {
+    // === ADMIN: Hide tabs and write section, show view-only ===
+    const tabsDiv = document.querySelector('.report-tabs');
+    if (tabsDiv) tabsDiv.style.display = 'none';
+    const secWrite = document.getElementById('section-write');
+    if (secWrite) secWrite.style.display = 'none';
+    const secView = document.getElementById('section-view');
+    if (secView) secView.classList.remove('hidden');
+
+    // Show admin-specific controls
     document.getElementById('admin-team-select-wrapper').style.display = 'inline-block';
+    document.getElementById('admin-view-mode-wrapper').style.display = 'inline-block';
+
+    // Load teams
     try {
       const res = await API.fetchGAS('getTeams');
       const teams = res.data || [];
@@ -39,6 +61,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch(e) {
       console.error('Error fetching teams:', e);
     }
+
+    // Load staff dropdown for individual mode
+    await loadAdminStaffDropdown();
+
+    // Handle initial view mode state
+    handleAdminViewModeChange();
+  } else {
+    // Non-admin: keep original tab behavior
+    document.getElementById('admin-view-mode-wrapper').style.display = 'none';
+    document.getElementById('admin-staff-select-wrapper').style.display = 'none';
+
+    if (user.role === '팀장') {
+      document.getElementById('admin-team-select-wrapper').style.display = 'none';
+    }
   }
 
   // Initialize view mode UI
@@ -47,8 +83,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load staff list if Leader or Admin
   await initStaffSelection();
 
-  // Load programs to write for today
-  await loadWritePrograms();
+  // Load programs to write for today (skip for admin)
+  if (user.role !== '관리자') {
+    await loadWritePrograms();
+  }
 });
 
 function setMode(mode) {
@@ -77,11 +115,27 @@ async function initStaffSelection() {
   const user = Auth.getUser();
   const container = document.getElementById('staff-select-container');
   
-  if (user.role === '팀장' || user.role === '관리자') {
+  if (user.role === '관리자') {
+    const viewMode = document.getElementById('admin-view-mode').value;
+    if (viewMode === 'individual') {
+      // Individual mode: hide checkboxes
+      container.classList.add('hidden');
+      return;
+    }
+    // Team mode: show checkboxes
     container.classList.remove('hidden');
     try {
-      const teamName = user.role === '관리자' ? document.getElementById('admin-view-team').value : user.team;
+      const teamName = document.getElementById('admin-view-team').value;
       const res = await API.fetchGAS('getStaffs', { teamName });
+      teamStaffList = res.data || [];
+      renderStaffCheckboxes();
+    } catch(e) {
+      console.error('Error fetching staff list:', e);
+    }
+  } else if (user.role === '팀장') {
+    container.classList.remove('hidden');
+    try {
+      const res = await API.fetchGAS('getStaffs', { teamName: user.team });
       teamStaffList = res.data || [];
       renderStaffCheckboxes();
     } catch(e) {
@@ -116,6 +170,45 @@ function renderStaffCheckboxes() {
 window.toggleAllStaff = function(checked) {
   const chks = document.getElementsByName('chk-staff');
   chks.forEach(c => c.checked = checked);
+}
+
+// === Admin View Mode Switch ===
+function handleAdminViewModeChange() {
+  const mode = document.getElementById('admin-view-mode').value;
+  const staffSelectWrapper = document.getElementById('admin-staff-select-wrapper');
+  const staffCheckboxContainer = document.getElementById('staff-select-container');
+  
+  if (mode === 'individual') {
+    staffSelectWrapper.style.display = 'inline-block';
+    staffCheckboxContainer.classList.add('hidden');
+  } else {
+    staffSelectWrapper.style.display = 'none';
+    staffCheckboxContainer.classList.remove('hidden');
+    initStaffSelection();
+  }
+}
+
+// === Load Admin Staff Dropdown (for individual mode) ===
+async function loadAdminStaffDropdown() {
+  const teamName = document.getElementById('admin-view-team').value;
+  if (!teamName) return;
+  
+  try {
+    const res = await API.fetchGAS('getStaffs', { teamName });
+    const staffs = res.data || [];
+    const select = document.getElementById('admin-staff-select');
+    select.innerHTML = '';
+    staffs.forEach(s => {
+      select.innerHTML += `<option value="${s.이름}">${s.이름} (${s.직위 || '팀원'})</option>`;
+    });
+  } catch(e) {
+    console.error('Error loading staff for individual select:', e);
+  }
+}
+
+// === PDF Export Function ===
+window.downloadReportPDF = function() {
+  window.print();
 }
 
 function handleReportTypeChange() {
@@ -362,21 +455,47 @@ async function generateReport() {
     endDate = startDate;
   }
   
-  // Collect selected staffs
-  const staffChks = document.getElementsByName('chk-staff');
-  const selectedStaffs = [];
-  staffChks.forEach(c => {
-    if (c.checked) selectedStaffs.push(c.value);
-  });
+  const teamName = user.role === '관리자' ? document.getElementById('admin-view-team').value : user.team;
   
-  if (selectedStaffs.length === 0 && (user.role === '팀장' || user.role === '관리자')) {
-    Utils.showToast('최소 한 명 이상의 직원을 선택해주세요.', 'warning');
-    return;
+  // Determine staff names based on mode
+  let selectedStaffs = [];
+  
+  if (user.role === '관리자') {
+    const viewMode = document.getElementById('admin-view-mode').value;
+    if (viewMode === 'individual') {
+      const staffName = document.getElementById('admin-staff-select').value;
+      if (!staffName) {
+        Utils.showToast('조회할 직원을 선택해주세요.', 'warning');
+        return;
+      }
+      selectedStaffs = [staffName];
+    } else {
+      // Team mode: collect from checkboxes
+      const staffChks = document.getElementsByName('chk-staff');
+      staffChks.forEach(c => {
+        if (c.checked) selectedStaffs.push(c.value);
+      });
+      if (selectedStaffs.length === 0) {
+        Utils.showToast('최소 한 명 이상의 직원을 선택해주세요.', 'warning');
+        return;
+      }
+    }
+  } else if (user.role === '팀장') {
+    const staffChks = document.getElementsByName('chk-staff');
+    staffChks.forEach(c => {
+      if (c.checked) selectedStaffs.push(c.value);
+    });
+    if (selectedStaffs.length === 0) {
+      Utils.showToast('최소 한 명 이상의 직원을 선택해주세요.', 'warning');
+      return;
+    }
+  } else {
+    // Staff member: use own name
+    selectedStaffs = [user.name];
   }
 
   try {
     Utils.showLoading();
-    const teamName = user.role === '관리자' ? document.getElementById('admin-view-team').value : user.team;
     const params = { date: startDate, startDate, endDate, teamName, staffNames: selectedStaffs };
     
     const res = await API.fetchGAS('getDailyWorkLogs', params);
@@ -572,9 +691,20 @@ function renderReportPreview(type, startDate, endDate, teamName) {
   const user = Auth.getUser();
   
   // Selected staff list for individual supervision inputs
-  const staffChks = document.getElementsByName('chk-staff');
-  const selectedStaffs = [];
-  staffChks.forEach(c => { if (c.checked) selectedStaffs.push(c.value); });
+  let selectedStaffs = [];
+  if (user.role === '관리자') {
+    const viewMode = document.getElementById('admin-view-mode').value;
+    if (viewMode === 'individual') {
+      const staffName = document.getElementById('admin-staff-select').value;
+      if (staffName) selectedStaffs = [staffName];
+    } else {
+      const staffChks = document.getElementsByName('chk-staff');
+      staffChks.forEach(c => { if (c.checked) selectedStaffs.push(c.value); });
+    }
+  } else {
+    const staffChks = document.getElementsByName('chk-staff');
+    staffChks.forEach(c => { if (c.checked) selectedStaffs.push(c.value); });
+  }
   
   const savedSupervisions = currentReportData.supervision || [];
   
