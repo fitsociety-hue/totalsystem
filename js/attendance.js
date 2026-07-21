@@ -40,15 +40,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     const countOnlyDiv = document.getElementById('count-only-section');
     const membersDiv = document.getElementById('members-section');
     const unspecDiv = document.getElementById('unspecified-section');
+    const manualTypeDiv = document.getElementById('manual-type-selection');
+    const manualTypeSelect = document.getElementById('manual-type-select');
     const dateStr = document.getElementById('attendance-date').value;
     
     if (countOnlyDiv) countOnlyDiv.classList.add('hidden');
     if (membersDiv) membersDiv.classList.add('hidden');
     if (unspecDiv) unspecDiv.classList.add('hidden');
+    if (manualTypeDiv) manualTypeDiv.classList.add('hidden');
 
-    if (program.실적유형 === '건수') {
+    let effectiveType = program.실적유형;
+    if (effectiveType === '수동입력') {
+      if (manualTypeDiv) manualTypeDiv.classList.remove('hidden');
+      if (manualTypeSelect && manualTypeSelect.value === '건수') {
+        effectiveType = '건수';
+      } else if (manualTypeSelect && manualTypeSelect.value === '불특정') {
+        effectiveType = '불특정 인원(실인원, 건수, 연인원)';
+      } else {
+        effectiveType = '출석부';
+      }
+    }
+
+    if (effectiveType === '건수') {
       if (countOnlyDiv) countOnlyDiv.classList.remove('hidden');
-    } else if (program.실적유형 === '불특정 인원(실인원, 건수, 연인원)') {
+    } else if (effectiveType === '불특정 인원(실인원, 건수, 연인원)') {
       if (unspecDiv) unspecDiv.classList.remove('hidden');
       
       try {
@@ -250,6 +265,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentProgram) await renderAttendanceSection(currentProgram);
   });
 
+  const manualSelect = document.getElementById('manual-type-select');
+  if (manualSelect) {
+    manualSelect.addEventListener('change', async () => {
+      if (currentProgram && currentProgram.실적유형 === '수동입력') {
+        await renderAttendanceSection(currentProgram);
+      }
+    });
+  }
+
   const btnToggleUnspec = document.getElementById('btn-toggle-unspec-details');
   if (btnToggleUnspec) {
     btnToggleUnspec.addEventListener('click', (e) => {
@@ -290,11 +314,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!currentProgram) return;
     const dateStr = document.getElementById('attendance-date').value;
     
+    let effectiveType = currentProgram.실적유형;
+    if (effectiveType === '수동입력') {
+      const manualTypeSelect = document.getElementById('manual-type-select');
+      if (manualTypeSelect && manualTypeSelect.value === '건수') {
+        effectiveType = '건수';
+      } else if (manualTypeSelect && manualTypeSelect.value === '불특정') {
+        effectiveType = '불특정 인원(실인원, 건수, 연인원)';
+      } else {
+        effectiveType = '출석부';
+      }
+    }
+
     try {
-      if (currentProgram.실적유형 === '건수') {
+      if (effectiveType === '건수') {
         const count = document.getElementById('input-count').value;
         await API.fetchGAS('submitCountOnly', { programId: currentProgram.사업ID, date: dateStr, count: parseInt(count, 10) });
-      } else if (currentProgram.실적유형 === '불특정 인원(실인원, 건수, 연인원)') {
+      } else if (effectiveType === '불특정 인원(실인원, 건수, 연인원)') {
         const data = {
           realCount: parseInt(document.getElementById('unspec-real').value, 10) || 0,
           count: parseInt(document.getElementById('unspec-count').value, 10) || 0,
