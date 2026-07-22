@@ -183,8 +183,18 @@ document.addEventListener('DOMContentLoaded', async () => {
           const att = attList.find(a => a.이름 === m.이름);
           if (att) {
             m.attended = (att.출석여부 === 'O');
+            m.count = Number(att.건수) || (m.attended ? 1 : 0);
+            const remarkText = att.비고 || '';
+            if (remarkText.startsWith('결석사유:')) {
+              const parts = remarkText.split(' / ');
+              m.absenceReason = parts[0].replace(/^결석사유:\s*/, '').trim();
+              m.remark = parts.slice(1).join(' / ');
+            } else {
+              m.remark = remarkText;
+            }
           } else {
             if (m.attended === undefined) m.attended = false;
+            if (m.count === undefined) m.count = 1;
           }
         });
 
@@ -209,7 +219,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     let attCount = currentMembers.filter(m => m.attended).length;
-    document.getElementById('attendance-counter').textContent = `출석 ${attCount}명 / 전체 ${currentMembers.length}명`;
+    let absCount = currentMembers.filter(m => !m.attended).length;
+    document.getElementById('attendance-counter').textContent = `출석 ${attCount}명 / 결석 ${absCount}명 (전체 ${currentMembers.length}명)`;
 
     if (filtered.length === 0) {
       grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 20px;">회원이 없습니다.</div>';
@@ -219,17 +230,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fragment = document.createDocumentFragment();
     filtered.forEach((m) => {
       const isExpanded = (expandedMemberName === m.이름);
+      const countVal = m.count || 1;
       const card = document.createElement('div');
       card.className = `att-card ${m.attended ? 'attended' : ''} ${isExpanded ? 'expanded' : ''}`;
       card.setAttribute('data-name', m.이름);
       
+      let badgeHtml = '';
+      if (m.attended) {
+        badgeHtml = `<span class="badge" style="background:var(--color-primary); color:white; font-size:11px; padding:2px 6px; border-radius:10px; margin-left:6px;">O 출석${countVal > 1 ? ` (${countVal}회)` : ''}</span>`;
+      } else if (m.absenceReason) {
+        badgeHtml = `<span class="badge" style="background:var(--color-error); color:white; font-size:11px; padding:2px 6px; border-radius:10px; margin-left:6px;">X 결석 (${m.absenceReason})</span>`;
+      }
+
       card.innerHTML = `
-        <div class="name-display">${m.이름}</div>
-        <div class="expanded-content">
-          <input type="text" class="form-input remark-input" data-name="${m.이름}" placeholder="비고 입력" value="${m.remark || ''}">
-          <div class="att-card-actions">
-            <button class="btn-ghost btn-cancel-att" data-name="${m.이름}" style="flex:1; border: 1px solid #ccc;">출석 취소</button>
-            <button class="btn-error btn-delete-member" data-name="${m.이름}" style="flex:1;">명단 삭제</button>
+        <div class="name-display flex justify-between items-center" style="width:100%;">
+          <span><strong>${m.이름}</strong> ${badgeHtml}</span>
+          ${m.attended ? `<button class="btn-ghost btn-inc-count" data-name="${m.이름}" style="padding:2px 6px; font-size:11px; border:1px solid var(--color-primary); color:var(--color-primary);" title="당일 2회 이상 출석 시 1회 추가">+1회 (보강)</button>` : ''}
+        </div>
+
+        <div class="expanded-content mt-2">
+          ${!m.attended ? `
+            <div class="mb-2 p-2 rounded" style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.2);">
+              <label class="form-label" style="font-size:11px; font-weight:bold; color:var(--color-error);">⚠️ 결석 사유 입력</label>
+              <div class="flex gap-1 mt-1">
+                <select class="form-select absence-select" data-name="${m.이름}" style="font-size:12px; max-width:120px;">
+                  <option value="">사유 선택</option>
+                  <option value="개인사정" ${m.absenceReason === '개인사정' ? 'selected' : ''}>개인사정</option>
+                  <option value="질병/병가" ${m.absenceReason === '질병/병가' ? 'selected' : ''}>질병/병가</option>
+                  <option value="가정사정" ${m.absenceReason === '가정사정' ? 'selected' : ''}>가정사정</option>
+                  <option value="무단결석" ${m.absenceReason === '무단결석' ? 'selected' : ''}>무단결석</option>
+                </select>
+                <input type="text" class="form-input absence-input" data-name="${m.이름}" placeholder="상세 사유 (예: 감기)" value="${m.absenceReason || ''}" style="font-size:12px;">
+              </div>
+            </div>
+          ` : `
+            <div class="mb-2 flex items-center justify-between" style="font-size:12px; background:rgba(59,130,246,0.06); padding:4px 8px; border-radius:4px;">
+              <span>당일 출석 횟수 (건수): <strong>${countVal}회</strong></span>
+              <div>
+                <button class="btn-ghost btn-set-count" data-name="${m.이름}" data-cnt="1" style="padding:2px 6px; font-size:11px;">1회(정규)</button>
+                <button class="btn-ghost btn-set-count" data-name="${m.이름}" data-cnt="2" style="padding:2px 6px; font-size:11px;">2회(보강)</button>
+              </div>
+            </div>
+          `}
+
+          <input type="text" class="form-input remark-input" data-name="${m.이름}" placeholder="특이사항(비고) 입력" value="${m.remark || ''}" style="font-size:12px;">
+          <div class="att-card-actions mt-2 flex gap-1">
+            <button class="btn-ghost btn-cancel-att" data-name="${m.이름}" style="flex:1; border: 1px solid #ccc; font-size:12px;">${m.attended ? '출석 취소 (결석 전환)' : '출석 처리'}</button>
+            <button class="btn-error btn-delete-member" data-name="${m.이름}" style="flex:1; font-size:12px;">명단 삭제</button>
           </div>
         </div>
       `;
@@ -240,26 +287,74 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Event Delegation for Grid Interactions
     grid.querySelectorAll('.att-card').forEach(card => {
       card.addEventListener('click', (e) => {
-        // Prevent trigger if clicking on inputs or buttons inside the card
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
         
         const memberName = card.getAttribute('data-name');
         const member = currentMembers.find(m => m.이름 === memberName);
         if (!member) return;
 
         if (!member.attended) {
-          // 1st Tap: Mark as Attended
           member.attended = true;
-          expandedMemberName = null; // collapse others
+          member.count = 1;
+          expandedMemberName = null;
           renderMembersGrid(filter);
         } else {
-          // 2nd Tap (already attended): Toggle expanded state
-          if (expandedMemberName === memberName) {
-            expandedMemberName = null; // collapse
-          } else {
-            expandedMemberName = memberName; // expand
+          expandedMemberName = (expandedMemberName === memberName) ? null : memberName;
+          renderMembersGrid(filter);
+        }
+      });
+    });
+
+    // Increment count button (+1회 보강)
+    grid.querySelectorAll('.btn-inc-count').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const memberName = e.target.getAttribute('data-name');
+        const member = currentMembers.find(m => m.이름 === memberName);
+        if (member) {
+          member.count = (member.count || 1) + 1;
+          Utils.showToast(`[${member.이름}] 당일 출석 횟수가 ${member.count}회로 설정되었습니다.`, 'info');
+          renderMembersGrid(filter);
+        }
+      });
+    });
+
+    // Set count button (1회 / 2회)
+    grid.querySelectorAll('.btn-set-count').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const memberName = e.target.getAttribute('data-name');
+        const cnt = parseInt(e.target.getAttribute('data-cnt'), 10) || 1;
+        const member = currentMembers.find(m => m.이름 === memberName);
+        if (member) {
+          member.count = cnt;
+          renderMembersGrid(filter);
+        }
+      });
+    });
+
+    // Absence Select & Input
+    grid.querySelectorAll('.absence-select').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const memberName = e.target.getAttribute('data-name');
+        const member = currentMembers.find(m => m.이름 === memberName);
+        if (member) {
+          member.absenceReason = e.target.value;
+          const customInput = grid.querySelector(`.absence-input[data-name="${memberName}"]`);
+          if (customInput && e.target.value !== '' && e.target.value !== '기타') {
+            customInput.value = e.target.value;
           }
           renderMembersGrid(filter);
+        }
+      });
+    });
+
+    grid.querySelectorAll('.absence-input').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const memberName = e.target.getAttribute('data-name');
+        const member = currentMembers.find(m => m.이름 === memberName);
+        if (member) {
+          member.absenceReason = e.target.value;
         }
       });
     });
@@ -273,14 +368,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
-    // Cancel Attendance Button
+    // Cancel / Toggle Attendance Button
     grid.querySelectorAll('.btn-cancel-att').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const memberName = e.target.getAttribute('data-name');
         const member = currentMembers.find(m => m.이름 === memberName);
         if (member) {
-          member.attended = false;
-          expandedMemberName = null;
+          member.attended = !member.attended;
+          if (member.attended) member.count = 1;
+          expandedMemberName = memberName;
           renderMembersGrid(filter);
         }
       });
@@ -306,12 +402,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Absence Modal listener
+  const viewAbsBtn = document.getElementById('btn-view-absences');
+  if (viewAbsBtn && !viewAbsBtn.dataset.hasListener) {
+    viewAbsBtn.dataset.hasListener = 'true';
+    viewAbsBtn.addEventListener('click', () => {
+      const absentMembers = currentMembers.filter(m => !m.attended);
+      const container = document.getElementById('absence-list-container');
+      const modal = document.getElementById('absence-modal');
+      
+      if (absentMembers.length === 0) {
+        container.innerHTML = '<p class="text-center" style="padding:20px; color:var(--color-primary-dark); font-weight:bold;">🎉 선택 일자의 결석 아동이 없습니다. (전원 출석!)</p>';
+      } else {
+        container.innerHTML = `
+          <table class="table-glass" style="width:100%; font-size:13px;">
+            <thead>
+              <tr>
+                <th style="padding:6px; color:var(--color-primary-dark);">이름</th>
+                <th style="padding:6px; color:var(--color-primary-dark);">상태</th>
+                <th style="padding:6px; color:var(--color-primary-dark);">결석 사유</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${absentMembers.map(m => `
+                <tr>
+                  <td style="padding:6px;"><strong>${m.이름}</strong></td>
+                  <td style="padding:6px;"><span style="color:var(--color-error); font-weight:bold;">결석</span></td>
+                  <td style="padding:6px; color:var(--color-text);">${m.absenceReason ? m.absenceReason : '<span style="color:#aaa;">(사유 미입력)</span>'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+      modal.classList.add('active');
+    });
+  }
+
   document.getElementById('search-member').addEventListener('input', (e) => {
     renderMembersGrid(e.target.value);
   });
 
   document.getElementById('btn-check-all').addEventListener('click', () => {
-    currentMembers.forEach(m => m.attended = true);
+    currentMembers.forEach(m => { m.attended = true; m.count = 1; });
     renderMembersGrid();
   });
 
@@ -394,12 +527,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         await API.fetchGAS('submitUnspecifiedAttendance', { programId: currentProgram.사업ID, date: dateStr, data: data });
       } else {
-        const attendanceList = currentMembers.map(m => ({
-          이름: m.이름,
-          출석여부: m.attended ? 'O' : 'X',
-          건수: m.attended ? 1 : 0
-        }));
-        await API.fetchGAS('checkAttendance', { programId: currentProgram.사업ID, date: dateStr, attendanceList });
+        const sessionRound = document.getElementById('session-round-select') ? document.getElementById('session-round-select').value : '1회차(정규)';
+        const attendanceList = currentMembers.map(m => {
+          let finalRemark = m.remark || '';
+          if (!m.attended && m.absenceReason) {
+            finalRemark = '결석사유: ' + m.absenceReason + (m.remark ? ' / ' + m.remark : '');
+          }
+          return {
+            이름: m.이름,
+            출석여부: m.attended ? 'O' : 'X',
+            건수: m.attended ? (m.count || 1) : 0,
+            비고: finalRemark
+          };
+        });
+        await API.fetchGAS('checkAttendance', { programId: currentProgram.사업ID, date: dateStr, attendanceList, sessionRound });
       }
       Utils.showToast('출석이 저장되었습니다.', 'success');
     } catch (e) {}

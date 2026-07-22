@@ -574,20 +574,29 @@ function checkAttendance(programId, date, attendanceList, user) {
   const prog = programs.find(p => p.사업ID === programId);
   if (!prog) throw new Error('사업을 찾을 수 없습니다.');
   
-  // 삭제 후 덮어쓰기를 위해 기존 해당일 데이터 삭제 (간단한 구현)
   deleteExistingAttendance(programId, date);
 
   const inputterName = (user && user.name) ? user.name : '시스템';
 
-  const attendedList = attendanceList.filter(att => att.출석여부 === 'O');
-
-  attendedList.forEach(att => {
-    const attId = 'ATT_' + new Date().getTime() + Math.floor(Math.random()*1000);
-    sheet.appendRow([
-      attId, date, programId, prog.사업명, prog.팀명, att.이름, 
-      att.출석여부, att.건수 || 0, '직원입력', inputterName, new Date()
-    ]);
+  const newRows = [];
+  attendanceList.forEach(att => {
+    // 출석(O)이거나 결석(X)이라도 사유가 있는 경우 레코드 저장
+    if (att.출석여부 === 'O' || (att.비고 && att.비고.trim() !== '')) {
+      const attId = 'ATT_' + new Date().getTime() + Math.floor(Math.random() * 1000);
+      const count = att.출석여부 === 'O' ? (Number(att.건수) || 1) : 0;
+      const remark = att.비고 || '';
+      
+      newRows.push([
+        attId, date, programId, prog.사업명, prog.팀명, att.이름, 
+        att.출석여부, count, '직원입력', inputterName, new Date(),
+        0, 0, 0, 0, 0, remark
+      ]);
+    }
   });
+
+  if (newRows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 17).setValues(newRows);
+  }
   
   recalcStatsDirectly();
   invalidateCache();
