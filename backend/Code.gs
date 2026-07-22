@@ -56,7 +56,7 @@ function handleRequest(e, method) {
 
     // 인증 검증 로직 (login, register, getAllSnapshotData 등은 제외)
     let user = null;
-    const bypassActions = ['login', 'register', 'verifyQRToken', 'selfCheckIn', 'setupAutoSyncTrigger', 'getAllSnapshotData'];
+    const bypassActions = ['login', 'register', 'verifyQRToken', 'selfCheckIn', 'setupAutoSyncTrigger', 'getAllSnapshotData', 'getAttendanceSheetAll'];
     if (!bypassActions.includes(action)) {
       if (!payload.token) throw new Error('인증 토큰이 필요합니다.');
       user = verifyToken(payload.token);
@@ -72,6 +72,7 @@ function handleRequest(e, method) {
       case 'login': result = login(payload.team, payload.name, payload.password); break;
       case 'register': result = registerUser(payload.team, payload.name, payload.password, payload.role); break;
       case 'getAllSnapshotData': result = getAllSnapshotData(); break;
+      case 'getAttendanceSheetAll': result = getAttendanceSheetAll(payload.date); break;
       
       // 회원 관리
       case 'getMembers': result = getMembers(payload.programId, payload.status, payload.programName, payload.teamName); break;
@@ -1377,13 +1378,32 @@ function invalidateCache() {
 }
 
 function getAllSnapshotData() {
+  const staffMaster = getSheetDataAsJSON('직원_마스터');
+  const safeStaffs = staffMaster.filter(s => String(s.상태 || '').trim() !== '비활성').map(s => ({
+    직원ID: s.직원ID,
+    이름: s.이름,
+    팀명: s.팀명,
+    직위: s.직위
+  }));
+
   return {
     teams: getTeams(),
     programs: getSheetDataAsJSON('사업_마스터'),
     members: getSheetDataAsJSON('회원_마스터'),
     stats: getSheetDataAsJSON('실적_집계'),
+    staffs: safeStaffs,
+    attendance: getSheetDataAsJSON('출석_원장'),
+    workLogs: getSheetDataAsJSON('업무일지_작성'),
+    supervision: getSheetDataAsJSON('업무일지_슈퍼비전'),
     timestamp: new Date().toISOString()
   };
+}
+
+function getAttendanceSheetAll(date) {
+  const data = getSheetDataAsJSON('출석_원장');
+  if (!date) return data;
+  const targetDate = formatDateStr(date);
+  return data.filter(a => formatDateStr(a.날짜) === targetDate);
 }
 
 function putCacheChunked(cacheKey, str) {

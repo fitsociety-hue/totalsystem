@@ -1,28 +1,31 @@
 // js/api.js
 
 const APICache = {
-  CACHE_DURATION_MS: 5 * 60 * 1000, // 5 minutes
+  CACHE_DURATION_MS: 10 * 60 * 1000, // 10 minutes cache
   
   getKey: function(action, params) {
     const keyParams = { ...params };
     delete keyParams.token;
+    delete keyParams.forceRefresh;
     return `api_cache_${action}_${JSON.stringify(keyParams)}`;
   },
 
   get: function(action, params) {
     const key = this.getKey(action, params);
-    const cached = sessionStorage.getItem(key);
+    const cached = sessionStorage.getItem(key) || localStorage.getItem(key);
     if (!cached) return null;
     
     try {
       const parsed = JSON.parse(cached);
       if (Date.now() - parsed.timestamp > this.CACHE_DURATION_MS) {
         sessionStorage.removeItem(key);
+        localStorage.removeItem(key);
         return null;
       }
       return parsed.data;
     } catch (e) {
       sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
       return null;
     }
   },
@@ -30,20 +33,23 @@ const APICache = {
   set: function(action, params, data) {
     const key = this.getKey(action, params);
     try {
-      sessionStorage.setItem(key, JSON.stringify({
+      const payload = JSON.stringify({
         timestamp: Date.now(),
         data: data
-      }));
+      });
+      sessionStorage.setItem(key, payload);
+      localStorage.setItem(key, payload);
     } catch (e) {
-      console.warn('SessionStorage quota exceeded or error:', e);
+      console.warn('Cache storage quota exceeded or error:', e);
     }
   },
 
   clearAll: function() {
     Object.keys(sessionStorage).forEach(key => {
-      if (key.startsWith('api_cache_')) {
-        sessionStorage.removeItem(key);
-      }
+      if (key.startsWith('api_cache_')) sessionStorage.removeItem(key);
+    });
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('api_cache_')) localStorage.removeItem(key);
     });
   }
 };
@@ -53,9 +59,23 @@ const API = {
   fetchStaticJSON: async function(action, params = {}) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500); // 2.5s fast timeout
+      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2.0s fast timeout
 
-      const res = await fetch(`/data/${action}.json`, {
+      // Map action to static json file
+      const endpointMap = {
+        'getMembers': 'getMembers.json',
+        'getPrograms': 'getPrograms.json',
+        'getTeams': 'getTeams.json',
+        'getStats': 'getStats.json',
+        'getAllStats': 'getStats.json',
+        'getStaffs': 'getStaffs.json',
+        'getAttendanceSheet': 'getAttendanceSheet.json',
+        'getDailyWorkLogs': 'getDailyWorkLogs.json',
+        'getSupervision': 'getSupervision.json'
+      };
+
+      const fileName = endpointMap[action] || `${action}.json`;
+      const res = await fetch(`/data/${fileName}`, {
         signal: controller.signal,
         headers: { 'Cache-Control': 'no-cache' }
       });
@@ -63,7 +83,7 @@ const API = {
 
       if (!res.ok) return null;
       const json = await res.json();
-      if (!json || !json.success || !json.data) return null;
+      if (!json || !json.success || json.data === undefined) return null;
 
       const filteredData = this.filterStaticData(action, params, json.data);
       console.log(`[Vercel CDN Static Hit] ${action}`, filteredData);
@@ -80,13 +100,13 @@ const API = {
     if (action === 'getMembers') {
       let list = data;
       if (params.status && params.status !== 'all') {
-        list = list.filter(m => m.상태 === params.status);
+        list = list.filter(m => String(m.상태 || '').trim() === params.status);
       }
       if (params.teamName && params.teamName !== '전체' && params.teamName !== '관리자') {
-        list = list.filter(m => m.팀명 === params.teamName);
+        list = list.filter(m => String(m.팀명 || '').trim() === params.teamName);
       }
       if (params.programName) {
-        list = list.filter(m => m.사업명 === params.programName);
+        list = list.filter(m => String(m.사업명 || '').trim() === params.programName);
       }
       return list;
     }
@@ -94,10 +114,57 @@ const API = {
     if (action === 'getPrograms') {
       let list = data;
       if (params.teamName && params.teamName !== '전체') {
-        list = list.filter(p => p.팀명 === params.teamName);
+        list = list.filter(p => String(p.팀명 || '').trim() === params.teamName);
       }
       if (params.status && params.status !== 'all') {
-        list = list.filter(p => p.상태 === params.status);
+        list = list.filter(p => String(p.상태 || '').trim() === params.status);
+      }
+      return list;
+    }
+
+    if (action === 'getStaffs') {
+      let list = data;
+      if (params.teamName && params.teamName !== '전체' && params.teamName !== '관리자') {
+        list = list.filter(s => String(s.팀명 || '').trim() === params.teamName);
+      }
+      return list;
+    }
+
+    if (action === 'getAttendanceSheet') {
+      let list = data;
+      if (params.programId && params.programId !== 'all') {
+        list = list.filter(a => String(a.사업ID || '').trim() === String(params.programId).trim());
+      }
+      if (params.date) {
+        const dStr = String(params.date).trim();
+        list = list.filter(a => String(a.날짜 || '').trim().startsWith(dStr));
+      }
+      return list;
+    }
+
+    if (action === 'getDailyWorkLogs') {
+      let list = data;
+      if (params.teamName && params.teamName !== '전체') {
+        list = list.filter(l => String(l.팀명 || '').trim() === params.teamName);
+      }
+      if (params.date) {
+        const dStr = String(params.date).trim();
+        list = list.filter(l => String(l.날짜 || '').trim().startsWith(dStr));
+      }
+      if (params.staffNames && params.staffNames.length > 0) {
+        list = list.filter(l => params.staffNames.includes(l.직원명));
+      }
+      return { workLogs: list };
+    }
+
+    if (action === 'getSupervision') {
+      let list = data;
+      if (params.teamName && params.teamName !== '전체') {
+        list = list.filter(s => String(s.팀명 || '').trim() === params.teamName);
+      }
+      if (params.date) {
+        const dStr = String(params.date).trim();
+        list = list.filter(s => String(s.날짜 || '').trim().startsWith(dStr));
       }
       return list;
     }
@@ -106,15 +173,20 @@ const API = {
   },
 
   fetchGAS: async function(action, params = {}, method = 'POST') {
-    const isReadAction = ['getMembers', 'getPrograms', 'getTeams', 'getStats', 'getAllStats'].includes(action);
+    const isReadAction = [
+      'getMembers', 'getPrograms', 'getTeams', 'getStats', 'getAllStats',
+      'getPersonalStats', 'getStaffs', 'getDailyWorkLogs', 'getAttendanceSheet',
+      'getAttendanceSheetAll', 'getSupervision'
+    ].includes(action);
+    
     const forceRefresh = params.forceRefresh === true;
 
-    // 1. Session Storage Cache check
+    // 1. Session & Local Storage Cache check (Instant Return)
     if (isReadAction && !forceRefresh) {
       const cachedData = APICache.get(action, params);
       if (cachedData) {
-        console.log(`[Browser Cache Hit] ${action}`, cachedData);
-        return { success: true, data: cachedData };
+        console.log(`[Instant Local Cache Hit] ${action}`, cachedData);
+        return { success: true, data: cachedData, isCache: true };
       }
 
       // 2. Ultra-fast Vercel Static Edge CDN fetch

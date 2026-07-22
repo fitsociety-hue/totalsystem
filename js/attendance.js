@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let existingAtt = [];
     try {
-      const attRes = await API.fetchGAS('getAttendanceSheet', { programId: program.사업ID, date: dateStr, forceRefresh: true });
+      const attRes = await API.fetchGAS('getAttendanceSheet', { programId: program.사업ID, date: dateStr });
       existingAtt = attRes.data || [];
     } catch (e) {
       console.error('Error fetching attendance sheet:', e);
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!existingAtt && program) {
       try {
-        const attRes = await API.fetchGAS('getAttendanceSheet', { programId: program.사업ID, date: dateStr, forceRefresh: true });
+        const attRes = await API.fetchGAS('getAttendanceSheet', { programId: program.사업ID, date: dateStr });
         existingAtt = attRes.data || [];
       } catch (e) {
         existingAtt = [];
@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Fetch members for the program
       try {
         const teamName = user.role === '관리자' ? '' : user.team;
-        const res = await API.fetchGAS('getMembers', { programId: 'all', status: '활성', teamName, forceRefresh: true });
+        const res = await API.fetchGAS('getMembers', { programId: 'all', status: '활성', teamName });
         const allMembers = res.data || [];
         
         if (program.사업명) {

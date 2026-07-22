@@ -274,9 +274,14 @@ async function loadWritePrograms() {
       사업분류: '공통'
     });
 
-    // 3. Load existing logs & attendance for pre-filling
-    const logRes = await API.fetchGAS('getDailyWorkLogs', { date: dateStr, teamName: user.team, staffNames: [user.name] });
-    const existingLogs = logRes.data.workLogs || [];
+    // 3. Load existing logs & attendance for pre-filling (Single batch fetch instead of 38 sequential calls)
+    const [logRes, attAllRes] = await Promise.all([
+      API.fetchGAS('getDailyWorkLogs', { date: dateStr, teamName: user.team, staffNames: [user.name] }),
+      API.fetchGAS('getAttendanceSheet', { date: dateStr })
+    ]);
+    
+    const existingLogs = (logRes && logRes.data && logRes.data.workLogs) || [];
+    const allAttList = (attAllRes && attAllRes.data) || [];
     
     listContainer.innerHTML = '';
     
@@ -291,8 +296,7 @@ async function loadWritePrograms() {
           </div>
         `;
       } else {
-        const attRes = await API.fetchGAS('getAttendanceSheet', { programId: p.사업ID, date: dateStr, forceRefresh: true });
-        const attList = attRes.data || [];
+        const attList = Array.isArray(allAttList) ? allAttList.filter(a => String(a.사업ID || '').trim() === String(p.사업ID).trim()) : [];
         const unspecAtt = attList.find(a => a.이름 === '불특정_인원_입력');
         const anonymousAtt = attList.find(a => a.이름 === '건수입력용_무명');
 

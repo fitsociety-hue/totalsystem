@@ -61,6 +61,10 @@ async function build() {
     programs: [],
     members: [],
     stats: [],
+    staffs: [],
+    attendance: [],
+    workLogs: [],
+    supervision: [],
     timestamp: new Date().toISOString()
   };
 
@@ -73,6 +77,9 @@ async function build() {
     console.log(` - Teams: ${snapshotData.teams ? snapshotData.teams.length : 0}`);
     console.log(` - Programs: ${snapshotData.programs ? snapshotData.programs.length : 0}`);
     console.log(` - Members: ${snapshotData.members ? snapshotData.members.length : 0}`);
+    console.log(` - Staffs: ${snapshotData.staffs ? snapshotData.staffs.length : 0}`);
+    console.log(` - Attendance: ${snapshotData.attendance ? snapshotData.attendance.length : 0}`);
+    console.log(` - WorkLogs: ${snapshotData.workLogs ? snapshotData.workLogs.length : 0}`);
   } else {
     console.warn('[Build] Warning: Could not fetch live data from GAS during build. Creating fallback static files.');
   }
@@ -82,19 +89,20 @@ async function build() {
   fs.writeFileSync(path.join(dataDir, 'snapshot.json'), snapshotContent);
 
   // Save individual action endpoint JSONs for fast fetch
-  const membersJson = JSON.stringify({ success: true, data: snapshotData.members || [] }, null, 2);
-  fs.writeFileSync(path.join(dataDir, 'getMembers.json'), membersJson);
+  const writeStaticJson = (fileName, data) => {
+    fs.writeFileSync(path.join(dataDir, fileName), JSON.stringify({ success: true, data }, null, 2));
+  };
 
-  const programsJson = JSON.stringify({ success: true, data: snapshotData.programs || [] }, null, 2);
-  fs.writeFileSync(path.join(dataDir, 'getPrograms.json'), programsJson);
+  writeStaticJson('getMembers.json', snapshotData.members || []);
+  writeStaticJson('getPrograms.json', snapshotData.programs || []);
+  writeStaticJson('getTeams.json', snapshotData.teams || []);
+  writeStaticJson('getStats.json', snapshotData.stats || []);
+  writeStaticJson('getStaffs.json', snapshotData.staffs || []);
+  writeStaticJson('getAttendanceSheet.json', snapshotData.attendance || []);
+  writeStaticJson('getDailyWorkLogs.json', snapshotData.workLogs || []);
+  writeStaticJson('getSupervision.json', snapshotData.supervision || []);
 
-  const teamsJson = JSON.stringify({ success: true, data: snapshotData.teams || [] }, null, 2);
-  fs.writeFileSync(path.join(dataDir, 'getTeams.json'), teamsJson);
-
-  const statsJson = JSON.stringify({ success: true, data: snapshotData.stats || [] }, null, 2);
-  fs.writeFileSync(path.join(dataDir, 'getStats.json'), statsJson);
-
-  console.log('[Build] Static pre-rendered JSON files generated in /data!');
+  console.log('[Build] All static pre-rendered JSON files generated in /data!');
 }
 
 build();
