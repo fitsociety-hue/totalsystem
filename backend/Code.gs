@@ -246,6 +246,8 @@ function getSheetDataAsJSON(sheetName, bypassCache = false) {
       const fallbackName = row[0] || row[1] || '';
       if (String(fallbackName).trim() !== '') {
         obj['이름'] = String(fallbackName).trim();
+      } else {
+        continue; // 이름이 완전히 비어있는 유령 행 스킵
       }
     }
 
@@ -460,6 +462,10 @@ function deleteProgramRecord(programId, pin, user) {
 
 function getMembers(programId, status, programName, teamName) {
   let members = getSheetDataAsJSON('회원_마스터');
+  
+  // 이름이 빈값인 무효 데이터 전면 제거
+  members = members.filter(m => m && m.이름 && String(m.이름).trim() !== '');
+
   if (status && status !== 'all') {
     members = members.filter(m => m.상태 === status);
   }
@@ -469,22 +475,16 @@ function getMembers(programId, status, programName, teamName) {
     
     members = members.filter(m => {
       if (m.팀명 === teamName) return true;
-      if (!m.팀명) {
-        const memberPrograms = String(m.사업명 || '').replace(/\s+/g, '');
-        if (memberPrograms) {
-          return teamPrograms.some(tp => memberPrograms.includes(tp));
-        }
-        return true; // 사업명이 없는 기존 회원 데이터도 누락 방지
+      const memberPrograms = String(m.사업명 || '').replace(/\s+/g, '');
+      if (memberPrograms && teamPrograms.length > 0) {
+        return teamPrograms.some(tp => memberPrograms.includes(tp));
       }
-      return false;
+      return !m.팀명;
     });
   }
-  // 사업명으로 필터링 (회원의 사업명 필드에 해당 사업명이 포함되어 있는지 확인, 공백 무시)
   if (programName) {
     const normSearch = String(programName).replace(/\s+/g, '');
     members = members.filter(m => {
-      // 배열 split 방식 대신, 모든 텍스트를 붙여서 부분일치(includes) 검색으로 변경 
-      // (사용자가 쉼표 대신 줄바꿈, 빗금, '및' 등으로 사업명을 구분해 입력하는 경우 대응)
       const memberPrograms = String(m.사업명 || '').replace(/\s+/g, '');
       return memberPrograms.includes(normSearch);
     });

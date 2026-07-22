@@ -112,7 +112,7 @@ async function loadMembers(forceRefresh = false) {
     }
 
     const res = await API.fetchGAS('getMembers', { status: 'all', forceRefresh, teamName });
-    let fetchedMembers = res.data || [];
+    let fetchedMembers = (res.data || []).filter(m => m && m.이름 && String(m.이름).trim() !== '');
     
     if (user && user.role !== '관리자' && user.role !== '팀장') {
       // 팀원은 자신이 담당하는 사업명과 관련된 회원만 표시

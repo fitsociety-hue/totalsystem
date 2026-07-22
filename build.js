@@ -95,6 +95,9 @@ async function build() {
       ...response.data,
       timestamp: new Date().toISOString()
     });
+    if (snapshotData.members && Array.isArray(snapshotData.members)) {
+      snapshotData.members = snapshotData.members.filter(m => m && m.이름 && String(m.이름).trim() !== '');
+    }
     console.log('[Build] Successfully fetched and sanitized snapshot data!');
     console.log(` - Teams: ${snapshotData.teams ? snapshotData.teams.length : 0}`);
     console.log(` - Programs: ${snapshotData.programs ? snapshotData.programs.length : 0}`);
