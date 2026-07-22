@@ -115,6 +115,9 @@ function handleRequest(e, method) {
       case 'submitSupervision': result = submitSupervision(payload.date, payload.teamName, payload.supervisions, user); break;
       case 'getTeams': result = getTeams(); break;
       case 'getStaffs': result = getStaffs(payload.teamName); break;
+      case 'getStaffsAll': result = getStaffs('전체', true); break;
+      case 'updateStaffStatus': result = updateStaffStatus(payload.staffId, payload.status, user); break;
+      case 'resetStaffPassword': result = resetStaffPassword(payload.staffId, payload.newPassword, user); break;
       
       // 시스템 관리
       case 'setupAutoSyncTrigger': result = setupAutoSyncTrigger(); break;
@@ -1904,12 +1907,49 @@ function submitSupervision(date, teamName, supervisions, user) {
   return true;
 }
 
-function getStaffs(teamName) {
+function getStaffs(teamName, includeAllStatus = false) {
   const data = getSheetDataAsJSON('직원_마스터', true);
-  if (teamName && teamName !== '전체' && teamName !== '관리자') {
-    return data.filter(s => s.팀명 === teamName && s.상태 !== '비활성');
+  let filtered = data;
+  if (!includeAllStatus) {
+    filtered = filtered.filter(s => s.상태 !== '퇴사' && s.상태 !== '비활성');
   }
-  return data.filter(s => s.상태 !== '비활성');
+  if (teamName && teamName !== '전체' && teamName !== '관리자') {
+    filtered = filtered.filter(s => s.팀명 === teamName);
+  }
+  return filtered;
+}
+
+function updateStaffStatus(staffId, status, user) {
+  if (!user || user.role !== '관리자') {
+    throw new Error('직원 상태 변경 권한이 없습니다.');
+  }
+  const sheet = getSheet('직원_마스터');
+  const vals = sheet.getDataRange().getValues();
+  for (let i = 1; i < vals.length; i++) {
+    if (String(vals[i][0]) === String(staffId)) {
+      sheet.getRange(i + 1, 6).setValue(status);
+      invalidateCache();
+      return true;
+    }
+  }
+  throw new Error('해당 직원을 찾을 수 없습니다.');
+}
+
+function resetStaffPassword(staffId, newPassword, user) {
+  if (!user || user.role !== '관리자') {
+    throw new Error('비밀번호 초기화 권한이 없습니다.');
+  }
+  const sheet = getSheet('직원_마스터');
+  const vals = sheet.getDataRange().getValues();
+  const hashedPw = hashPassword(newPassword);
+  for (let i = 1; i < vals.length; i++) {
+    if (String(vals[i][0]) === String(staffId)) {
+      sheet.getRange(i + 1, 5).setValue(hashedPw);
+      invalidateCache();
+      return true;
+    }
+  }
+  throw new Error('해당 직원을 찾을 수 없습니다.');
 }
 
 function getTeams() {

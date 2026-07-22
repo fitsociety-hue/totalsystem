@@ -29,6 +29,31 @@ async function renderAdminDashboard(container, forceRefresh = false) {
     <div class="grid-cards mb-3" id="admin-summary">
       <div class="glass-card stat-card"><div class="spinner"></div></div>
     </div>
+
+    <!-- 직원 관리 (재직/퇴사/휴직 및 비밀번호 초기화) -->
+    <div class="glass-card mb-3">
+      <div class="flex justify-between items-center mb-3">
+        <h3 style="margin:0;">직원 관리</h3>
+        <span class="text-sub" style="font-size:12px;">💡 재직, 퇴사, 휴직 상태 변경 및 비밀번호 초기화</span>
+      </div>
+      <div class="table-container">
+        <table class="table-glass" id="admin-staff-table">
+          <thead>
+            <tr>
+              <th style="color:var(--color-primary-dark); font-weight:bold;">부서</th>
+              <th style="color:var(--color-primary-dark); font-weight:bold;">이름</th>
+              <th style="color:var(--color-primary-dark); font-weight:bold;">직급</th>
+              <th style="color:var(--color-primary-dark); font-weight:bold;">상태</th>
+              <th style="color:var(--color-primary-dark); font-weight:bold;">비밀번호 재설정</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="5" class="text-center">직원 목록을 불러오는 중입니다...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="glass-card mb-3">
       <h3 class="mb-2">관리자 설정</h3>
       <div class="flex gap-2 items-center mt-2">
@@ -42,6 +67,9 @@ async function renderAdminDashboard(container, forceRefresh = false) {
     </div>
   `;
   
+  // Load Staff Management Table
+  window.loadAdminStaffList(forceRefresh);
+
   try {
     const res = await API.fetchGAS('getAllStats', forceRefresh ? { forceRefresh: true } : {});
     const stats = res.data; // assume it returns aggregated stats
@@ -91,6 +119,69 @@ async function renderAdminDashboard(container, forceRefresh = false) {
     document.getElementById('admin-summary').innerHTML = '<p>데이터를 불러오지 못했습니다.</p>';
   }
 }
+
+window.loadAdminStaffList = async function(forceRefresh = false) {
+  const tbody = document.querySelector('#admin-staff-table tbody');
+  if (!tbody) return;
+
+  try {
+    const res = await API.fetchGAS('getStaffsAll', forceRefresh ? { forceRefresh: true } : {});
+    const staffs = res.data || [];
+    
+    if (staffs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center">등록된 직원이 없습니다.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = staffs.map(s => {
+      const currentStatus = s.상태 || '재직';
+      return `
+        <tr>
+          <td>${s.팀명 || '-'}</td>
+          <td><strong>${s.이름}</strong></td>
+          <td>${s.직위 || s.권한 || '직원'}</td>
+          <td>
+            <select class="form-select" style="max-width: 110px; padding: 4px 8px; font-weight:bold;" onchange="changeStaffStatus('${s.직원ID}', this.value)">
+              <option value="재직" ${currentStatus === '재직' ? 'selected' : ''}>재직</option>
+              <option value="휴직" ${currentStatus === '휴직' ? 'selected' : ''}>휴직</option>
+              <option value="퇴사" ${currentStatus === '퇴사' || currentStatus === '비활성' ? 'selected' : ''}>퇴사</option>
+            </select>
+          </td>
+          <td>
+            <button class="btn-secondary" style="padding: 4px 12px; font-size: 13px; border-color:var(--color-primary); color:var(--color-primary);" onclick="promptResetStaffPassword('${s.직원ID}', '${s.이름}')">비밀번호 초기화</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center">직원 목록을 불러오지 못했습니다.</td></tr>';
+  }
+};
+
+window.changeStaffStatus = async function(staffId, newStatus) {
+  try {
+    await API.fetchGAS('updateStaffStatus', { staffId, status: newStatus });
+    Utils.showToast(`직원 상태가 '${newStatus}'(으)로 변경되었습니다.`, 'success');
+  } catch (e) {
+    Utils.showToast(e.message, 'error');
+  }
+};
+
+window.promptResetStaffPassword = async function(staffId, staffName) {
+  const newPw = prompt(`[${staffName}] 직원의 새 비밀번호를 입력하세요:`, '1234');
+  if (newPw === null) return;
+  if (!newPw.trim()) {
+    Utils.showToast('새 비밀번호를 입력해 주세요.', 'warning');
+    return;
+  }
+
+  try {
+    await API.fetchGAS('resetStaffPassword', { staffId, newPassword: newPw.trim() });
+    Utils.showToast(`[${staffName}] 직원의 비밀번호가 '${newPw.trim()}'(으)로 초기화되었습니다.`, 'success');
+  } catch (e) {
+    Utils.showToast(e.message, 'error');
+  }
+};
 
 window.currentLeaderStats = null;
 
