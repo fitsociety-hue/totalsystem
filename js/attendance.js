@@ -235,10 +235,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     let filtered = currentMembers.filter(m => m && m.이름 && String(m.이름).trim() !== '');
     
-    // 1. 요일별 필터 적용 (수요일 등 선택 일자의 요일에 맞는 이용인 명단 자동 분류)
-    const daysMap = ['일', '월', '화', '수', '목', '금', '토'];
+    // 1. 요일별 필터 적용 (대한민국 시간 기준 선택 일자의 요일에 맞는 이용인 명단 자동 분류)
     const dateVal = document.getElementById('attendance-date') ? document.getElementById('attendance-date').value : '';
-    const currentDayName = dateVal ? daysMap[new Date(dateVal).getDay()] : '';
+    let currentDayName = '';
+    if (dateVal) {
+      const parts = dateVal.split('-');
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        const daysMap = ['일', '월', '화', '수', '목', '금', '토'];
+        currentDayName = daysMap[new Date(y, m, d).getDay()];
+      }
+    }
+
     const dayFilterEl = document.getElementById('day-filter-select');
     const dayFilterVal = dayFilterEl ? dayFilterEl.value : 'auto';
 
@@ -251,8 +261,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (targetDay) {
       filtered = filtered.filter(m => {
-        if (!m.요일 || m.요일 === '전체' || m.요일 === '' || m.요일 === '매일') return true;
-        return m.요일.includes(targetDay);
+        const rawDays = String(m.요일 || '전체').trim();
+        if (!rawDays || rawDays === '전체' || rawDays === '매일' || rawDays === 'all') return true;
+        return rawDays.includes(targetDay);
       });
     }
 

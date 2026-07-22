@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           return {
             이름: getVal(['이름', '성명', '회원명']),
             시작일: getVal(['시작일', '등록일', '가입일', '일자']),
+            요일: getVal(['이용요일', '요일', '수업요일', '출석요일']) || '전체',
             장애비장애구분: getVal(['장애비장애구분', '장애구분', '장애']) || '비장애',
             구분: getVal(['구분', '회원구분']) || '개별',
             상태: getVal(['상태']) || '활성',
@@ -293,7 +294,7 @@ window.downloadMembersCSV = function() {
     return;
   }
 
-  const headers = ['이름', '시작일', '장애비장애구분', '구분', '상태', '팀명', '사업명', '메모'];
+  const headers = ['이름', '시작일', '이용요일', '장애비장애구분', '구분', '상태', '팀명', '사업명', '메모'];
   const escapeCSV = (val) => {
     const str = String(val == null ? '' : val);
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
@@ -307,9 +308,10 @@ window.downloadMembersCSV = function() {
     csv += [
       m.이름,
       Utils.formatDate(m.시작일),
-      m.장애비장애구분,
+      m.요일 || '전체',
+      m.장애비장애구분 || '비장애',
       m.구분 || '개별',
-      m.상태,
+      m.상태 || '활성',
       m.팀명 || '',
       m.사업명 || '',
       m.메모 || ''
