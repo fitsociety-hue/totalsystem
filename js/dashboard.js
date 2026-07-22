@@ -22,42 +22,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function renderAdminDashboard(container, forceRefresh = false) {
   container.innerHTML = `
-    <div class="flex justify-between items-center mb-3">
+    <div class="flex justify-between items-center mb-3 flex-mobile-col">
       <h2 style="margin:0;">관리자 대시보드</h2>
-      <button class="btn-secondary" onclick="window.refreshDashboard(true)" style="padding: 6px 12px; font-size: 0.9em;">새로고침</button>
+      <div class="flex gap-2 items-center">
+        <a href="staff.html" class="btn-primary" style="text-decoration:none; font-size: 0.9em; padding: 8px 16px;">👥 직원 관리 페이지 ➔</a>
+        <button class="btn-secondary" onclick="window.refreshDashboard(true)" style="padding: 8px 16px; font-size: 0.9em;">새로고침</button>
+      </div>
     </div>
     <div class="grid-cards mb-3" id="admin-summary">
       <div class="glass-card stat-card"><div class="spinner"></div></div>
     </div>
 
-    <!-- 직원 관리 (재직/퇴사/휴직 및 비밀번호 초기화) -->
-    <div class="glass-card mb-3">
-      <div class="flex justify-between items-center mb-3">
-        <h3 style="margin:0;">직원 관리</h3>
-        <span class="text-sub" style="font-size:12px;">💡 재직, 퇴사, 휴직 상태 변경 및 비밀번호 초기화</span>
+    <div class="glass-card mb-3" style="border-left: 4px solid var(--color-primary);">
+      <div class="flex justify-between items-center mb-2">
+        <h3 style="margin:0;">직원 관리 메뉴</h3>
+        <span class="badge badge-primary">독립 탭 운영</span>
       </div>
-      <div class="table-container">
-        <table class="table-glass" id="admin-staff-table">
-          <thead>
-            <tr>
-              <th style="color:var(--color-primary-dark); font-weight:bold;">부서</th>
-              <th style="color:var(--color-primary-dark); font-weight:bold;">이름</th>
-              <th style="color:var(--color-primary-dark); font-weight:bold;">직급</th>
-              <th style="color:var(--color-primary-dark); font-weight:bold;">상태</th>
-              <th style="color:var(--color-primary-dark); font-weight:bold;">비밀번호 재설정</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td colspan="5" class="text-center">직원 목록을 불러오는 중입니다...</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <p class="text-sub" style="font-size:13px; margin-bottom:12px;">
+        직원의 재직, 휴직, 퇴사 상태 관리 및 비밀번호 초기화 기능은 <strong>'직원 관리' 전용 페이지</strong>에서 안전하게 처리할 수 있습니다.
+      </p>
+      <a href="staff.html" class="btn-secondary" style="display:inline-block; text-decoration:none; padding: 6px 16px; font-weight: bold;">직원 관리 이동</a>
     </div>
 
     <div class="glass-card mb-3">
       <h3 class="mb-2">관리자 설정</h3>
-      <div class="flex gap-2 items-center mt-2">
-        <input type="password" id="new-admin-pw" class="form-input" placeholder="새 관리자 비밀번호" style="max-width:200px;">
+      <div class="flex gap-2 items-center mt-2 flex-mobile-col">
+        <input type="password" id="new-admin-pw" class="form-input" placeholder="새 관리자 비밀번호" style="max-width:240px;">
         <button class="btn-primary" onclick="changeAdminPassword()">비밀번호 변경</button>
       </div>
     </div>

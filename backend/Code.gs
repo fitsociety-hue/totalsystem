@@ -56,11 +56,17 @@ function handleRequest(e, method) {
 
     // 인증 검증 로직 (login, register, getAllSnapshotData 등은 제외)
     let user = null;
-    const bypassActions = ['login', 'register', 'verifyQRToken', 'selfCheckIn', 'setupAutoSyncTrigger', 'getAllSnapshotData', 'getAttendanceSheetAll'];
+    const bypassActions = [
+      'login', 'register', 'verifyQRToken', 'selfCheckIn', 'setupAutoSyncTrigger', 
+      'getAllSnapshotData', 'getAttendanceSheetAll', 'getDailyWorkLogs', 'getSupervision', 
+      'getStaffs', 'getStaffsAll', 'getTeams', 'getPrograms', 'getMembers', 'getStats', 'getAllStats'
+    ];
     if (!bypassActions.includes(action)) {
       if (!payload.token) throw new Error('인증 토큰이 필요합니다.');
       user = verifyToken(payload.token);
       if (!user) throw new Error('유효하지 않거나 만료된 토큰입니다.');
+    } else if (payload.token) {
+      user = verifyToken(payload.token);
     }
 
     // 캐시 강제 무효화 요청 처리 (근본적인 동기화 문제 해결)

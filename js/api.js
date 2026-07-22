@@ -136,25 +136,33 @@ const API = {
         list = list.filter(a => String(a.사업ID || '').trim() === String(params.programId).trim());
       }
       if (params.date) {
-        const dStr = String(params.date).trim();
-        list = list.filter(a => String(a.날짜 || '').trim().startsWith(dStr));
+        const targetD = Utils.formatDate(params.date);
+        list = list.filter(a => Utils.formatDate(a.날짜) === targetD);
       }
       return list;
     }
 
     if (action === 'getDailyWorkLogs') {
       let list = data;
+      const targetDateStr = Utils.formatDate(params.date || params.startDate || new Date());
+      const sD = Utils.formatDate(params.startDate || params.date || targetDateStr);
+      const eD = Utils.formatDate(params.endDate || params.date || targetDateStr);
+
       if (params.teamName && params.teamName !== '전체') {
         list = list.filter(l => String(l.팀명 || '').trim() === params.teamName);
       }
-      if (params.date) {
-        const dStr = String(params.date).trim();
-        list = list.filter(l => String(l.날짜 || '').trim().startsWith(dStr));
+      if (sD && eD) {
+        list = list.filter(l => {
+          const lD = Utils.formatDate(l.날짜);
+          return lD >= sD && lD <= eD;
+        });
       }
       if (params.staffNames && params.staffNames.length > 0) {
         list = list.filter(l => params.staffNames.includes(l.직원명));
       }
-      return { workLogs: list };
+
+      // If stats are not pre-computed in static payload, return null to force live GAS call
+      return null;
     }
 
     if (action === 'getSupervision') {
@@ -163,8 +171,8 @@ const API = {
         list = list.filter(s => String(s.팀명 || '').trim() === params.teamName);
       }
       if (params.date) {
-        const dStr = String(params.date).trim();
-        list = list.filter(s => String(s.날짜 || '').trim().startsWith(dStr));
+        const targetD = Utils.formatDate(params.date);
+        list = list.filter(s => Utils.formatDate(s.날짜) === targetD);
       }
       return list;
     }

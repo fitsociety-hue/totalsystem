@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>직원 관리 - 강동어울림복지관</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <nav class="nav-sidebar">
+      <div class="logo">강동어울림복지관</div>
+      <a href="dashboard.html" class="nav-item">대시보드</a>
+      <a href="attendance.html" class="nav-item">출석체크</a>
+      <a href="members.html" class="nav-item">회원 관리</a>
+      <a href="programs.html" class="nav-item">사업 관리</a>
+      <a href="stats.html" class="nav-item">실적 현황</a>
+      <a href="report.html" class="nav-item">업무 보고</a>
+      <a href="staff.html" class="nav-item active admin-only" id="nav-staff">직원 관리</a>
+    </nav>
+    
+    <main class="main-content">
+      <header class="topbar">
+        <div style="font-weight: bold; font-size: 1.1em; color: var(--color-primary-dark);">직원 관리</div>
+        <div class="flex items-center gap-2">
+          <span id="topbar-team-name" class="badge badge-neutral"></span>
+          <span id="topbar-user-name"></span>
+          <button onclick="Auth.logout()" class="btn-ghost" style="padding: 4px 8px;">로그아웃</button>
+        </div>
+      </header>
+      
+      <div class="content-body">
+        <div class="flex justify-between items-center mb-3 flex-mobile-col">
+          <div>
+            <h2 style="margin: 0; color: var(--color-text);">직원 계정 및 상태 관리</h2>
+            <p class="text-sub" style="font-size: 13px; margin-top: 4px;">
+              💡 직원의 재직, 휴직, 퇴사 상태 변경 및 비밀번호 초기화를 관리합니다.
+            </p>
+          </div>
+          <div class="flex gap-2 items-center">
+            <input type="text" id="staff-search-input" class="form-input" placeholder="이름 또는 부서 검색..." style="max-width: 220px;">
+            <button class="btn-secondary" onclick="loadStaffList(true)" style="white-space: nowrap;">새로고침</button>
+          </div>
+        </div>
+
+        <div class="grid-cards mb-3" id="staff-stats-cards">
+          <div class="glass-card stat-card">
+            <h3>총 직원 수</h3>
+            <div class="value" id="count-total-staff">0명</div>
+          </div>
+          <div class="glass-card stat-card">
+            <h3>재직 직원</h3>
+            <div class="value" style="color: var(--color-success);" id="count-active-staff">0명</div>
+          </div>
+          <div class="glass-card stat-card">
+            <h3>휴직 직원</h3>
+            <div class="value" style="color: var(--color-warning);" id="count-leave-staff">0명</div>
+          </div>
+          <div class="glass-card stat-card">
+            <h3>퇴사/비활성</h3>
+            <div class="value" style="color: var(--color-text-sub);" id="count-retired-staff">0명</div>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="table-container">
+            <table class="table-glass" id="staff-table">
+              <thead>
+                <tr>
+                  <th style="color:var(--color-primary-dark); font-weight:bold;">부서(팀명)</th>
+                  <th style="color:var(--color-primary-dark); font-weight:bold;">이름</th>
+                  <th style="color:var(--color-primary-dark); font-weight:bold;">직위/권한</th>
+                  <th style="color:var(--color-primary-dark); font-weight:bold;">재직 상태</th>
+                  <th style="color:var(--color-primary-dark); font-weight:bold;">비밀번호 설정</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="5" class="text-center">직원 목록을 불러오는 중입니다...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/staff.js"></script>
+</body>
+</html>

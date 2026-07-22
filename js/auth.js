@@ -81,6 +81,15 @@ const Auth = {
       const teamEl = document.getElementById('topbar-team-name');
       if(nameEl) nameEl.textContent = user.name + ' (' + user.role + ')';
       if(teamEl) teamEl.textContent = user.team;
+
+      // Show or hide admin-only navigation links
+      document.querySelectorAll('.admin-only').forEach(el => {
+        if (user.role === '관리자') {
+          el.style.display = 'block';
+        } else {
+          el.style.display = 'none';
+        }
+      });
     }
   }
 };
