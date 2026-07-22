@@ -53,14 +53,15 @@
             <div id="attendance-counter"></div>
           </div>
           
-          <!-- Manual Type Selection -->
-          <div id="manual-type-selection" class="mb-3 hidden">
-            <label class="form-label">입력 방식 선택</label>
-            <select id="manual-type-select" class="form-select">
-              <option value="출석부">참석자 출석부 형식</option>
-              <option value="건수">건수 만 입력</option>
-              <option value="불특정">불특정 인원 입력</option>
+          <!-- Performance Type Selection -->
+          <div id="manual-type-selection" class="mb-3">
+            <label class="form-label" style="font-weight: 600; color: var(--color-primary-dark);">실적유형 (입력 방식 선택)</label>
+            <select id="manual-type-select" class="form-select" style="max-width: 340px; font-weight: 500;">
+              <option value="출석부">1. 참석자 출석부 (실인원, 건수, 연인원)</option>
+              <option value="건수">2. 건수만 입력 (협약 체결 등)</option>
+              <option value="불특정">3. 불특정 인원 입력 (행사 참여자 등)</option>
             </select>
+            <div id="type-description-hint" class="text-sub mt-1" style="font-size: 12px; color: var(--color-text-sub);"></div>
           </div>
           
           <!-- Only count input -->

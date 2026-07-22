@@ -290,60 +290,67 @@ async function loadWritePrograms() {
             오늘 하루 동안 진행하신 전반적인 업무 총평 및 종합 실적 내용을 자유롭게 작성해 주세요.
           </div>
         `;
-      } else if (p.실적유형 === '건수') {
-        const attRes = await API.fetchGAS('getAttendanceSheet', { programId: p.사업ID, date: dateStr, forceRefresh: true });
-        const attList = attRes.data || [];
-        const anonymousAtt = attList.find(a => a.이름 === '건수입력용_무명');
-        const countVal = anonymousAtt ? (anonymousAtt.건수 || 0) : 0;
-        rateHtml = `
-          <div class="form-group mb-2">
-            <label class="form-label" style="font-size:13px; font-weight:bold;">실적 입력 (건수)</label>
-            <input type="number" id="perf-count-${p.사업ID}" class="form-input" style="max-width: 120px;" value="${countVal}" min="0">
-          </div>
-        `;
-      } else if (p.실적유형 === '불특정 인원(실인원, 건수, 연인원)') {
-        const attRes = await API.fetchGAS('getAttendanceSheet', { programId: p.사업ID, date: dateStr, forceRefresh: true });
-        const attList = attRes.data || [];
-        const unspecAtt = attList.find(a => a.이름 === '불특정_인원_입력') || {};
-        rateHtml = `
-          <div class="grid-cards mb-2" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
-            <div class="form-group mb-0">
-              <label class="form-label" style="font-size:12px; font-weight:bold;">실인원</label>
-              <input type="number" id="perf-unspec-real-${p.사업ID}" class="form-input" value="${unspecAtt.실인원 || 0}">
-            </div>
-            <div class="form-group mb-0">
-              <label class="form-label" style="font-size:12px; font-weight:bold;">건수</label>
-              <input type="number" id="perf-unspec-count-${p.사업ID}" class="form-input" value="${unspecAtt.건수 || 0}">
-            </div>
-            <div class="form-group mb-0">
-              <label class="form-label" style="font-size:12px; font-weight:bold;">연인원 (자동합산)</label>
-              <input type="number" id="perf-unspec-accum-${p.사업ID}" class="form-input" value="${unspecAtt.연인원 || 0}" readonly>
-            </div>
-          </div>
-          <div class="grid-cards mb-2" style="grid-template-columns: repeat(3, 1fr); gap: 10px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 6px;">
-            <div class="form-group mb-0">
-              <label class="form-label" style="font-size:11px; color:var(--color-text-sub);">직원수</label>
-              <input type="number" id="perf-unspec-staff-${p.사업ID}" class="form-input" value="${unspecAtt.세부_직원 || 0}">
-            </div>
-            <div class="form-group mb-0">
-              <label class="form-label" style="font-size:11px; color:var(--color-text-sub);">장애인수</label>
-              <input type="number" id="perf-unspec-disabled-${p.사업ID}" class="form-input" value="${unspecAtt.세부_장애인 || 0}">
-            </div>
-            <div class="form-group mb-0">
-              <label class="form-label" style="font-size:11px; color:var(--color-text-sub);">비장애인수</label>
-              <input type="number" id="perf-unspec-nondisabled-${p.사업ID}" class="form-input" value="${unspecAtt.세부_비장애인 || 0}">
-            </div>
-          </div>
-        `;
       } else {
         const attRes = await API.fetchGAS('getAttendanceSheet', { programId: p.사업ID, date: dateStr, forceRefresh: true });
         const attList = attRes.data || [];
-        const attendedCount = attList.filter(a => a.출석여부 === 'O').length;
-        rateHtml = `
-          <div class="mb-2" style="font-size: 13px; color: var(--color-primary-dark);">
-            ℹ️ 일반 회원제 사업입니다. 실적 입력은 <strong><a href="attendance.html" style="text-decoration: underline;">출석체크</a></strong> 페이지에서 진행해주세요. (오늘 출석: <strong>${attendedCount}명</strong>)
-          </div>
-        `;
+        const unspecAtt = attList.find(a => a.이름 === '불특정_인원_입력');
+        const anonymousAtt = attList.find(a => a.이름 === '건수입력용_무명');
+
+        let effectiveType = p.실적유형;
+        if (unspecAtt) {
+          effectiveType = '불특정 인원(실인원, 건수, 연인원)';
+        } else if (anonymousAtt) {
+          effectiveType = '건수';
+        }
+
+        if (effectiveType === '건수' || effectiveType === '건수만') {
+          const countVal = anonymousAtt ? (anonymousAtt.건수 || 0) : 0;
+          rateHtml = `
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-size:13px; font-weight:bold;">실적 입력 (건수)</label>
+              <input type="number" id="perf-count-${p.사업ID}" class="form-input" style="max-width: 120px;" value="${countVal}" min="0">
+            </div>
+          `;
+        } else if (effectiveType === '불특정 인원(실인원, 건수, 연인원)' || effectiveType === '불특정') {
+          const uAtt = unspecAtt || {};
+          rateHtml = `
+            <div class="grid-cards mb-2" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
+              <div class="form-group mb-0">
+                <label class="form-label" style="font-size:12px; font-weight:bold;">실인원</label>
+                <input type="number" id="perf-unspec-real-${p.사업ID}" class="form-input" value="${uAtt.실인원 || 0}">
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-label" style="font-size:12px; font-weight:bold;">건수</label>
+                <input type="number" id="perf-unspec-count-${p.사업ID}" class="form-input" value="${uAtt.건수 || 0}">
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-label" style="font-size:12px; font-weight:bold;">연인원 (자동합산)</label>
+                <input type="number" id="perf-unspec-accum-${p.사업ID}" class="form-input" value="${uAtt.연인원 || 0}" readonly>
+              </div>
+            </div>
+            <div class="grid-cards mb-2" style="grid-template-columns: repeat(3, 1fr); gap: 10px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 6px;">
+              <div class="form-group mb-0">
+                <label class="form-label" style="font-size:11px; color:var(--color-text-sub);">직원수</label>
+                <input type="number" id="perf-unspec-staff-${p.사업ID}" class="form-input" value="${uAtt.세부_직원 || 0}">
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-label" style="font-size:11px; color:var(--color-text-sub);">장애인수</label>
+                <input type="number" id="perf-unspec-disabled-${p.사업ID}" class="form-input" value="${uAtt.세부_장애인 || 0}">
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-label" style="font-size:11px; color:var(--color-text-sub);">비장애인수</label>
+                <input type="number" id="perf-unspec-nondisabled-${p.사업ID}" class="form-input" value="${uAtt.세부_비장애인 || 0}">
+              </div>
+            </div>
+          `;
+        } else {
+          const attendedCount = attList.filter(a => a.출석여부 === 'O' && a.이름 !== '건수입력용_무명' && a.이름 !== '불특정_인원_입력').length;
+          rateHtml = `
+            <div class="mb-2" style="font-size: 13px; color: var(--color-primary-dark);">
+              ℹ️ 일반 회원제 사업입니다. 실적 입력은 <strong><a href="attendance.html" style="text-decoration: underline;">출석체크</a></strong> 페이지에서 진행해주세요. (오늘 출석: <strong>${attendedCount}명</strong>)
+            </div>
+          `;
+        }
       }
 
       listContainer.innerHTML += `

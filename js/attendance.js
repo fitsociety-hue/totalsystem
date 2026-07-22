@@ -42,48 +42,89 @@ document.addEventListener('DOMContentLoaded', async () => {
     const unspecDiv = document.getElementById('unspecified-section');
     const manualTypeDiv = document.getElementById('manual-type-selection');
     const manualTypeSelect = document.getElementById('manual-type-select');
+    const typeHintDiv = document.getElementById('type-description-hint');
     const dateStr = document.getElementById('attendance-date').value;
     
-    if (countOnlyDiv) countOnlyDiv.classList.add('hidden');
-    if (membersDiv) membersDiv.classList.add('hidden');
-    if (unspecDiv) unspecDiv.classList.add('hidden');
-    if (manualTypeDiv) manualTypeDiv.classList.add('hidden');
+    if (manualTypeDiv) manualTypeDiv.classList.remove('hidden');
 
-    let effectiveType = program.실적유형;
-    if (effectiveType === '수동입력') {
-      if (manualTypeDiv) manualTypeDiv.classList.remove('hidden');
-      if (manualTypeSelect && manualTypeSelect.value === '건수') {
-        effectiveType = '건수';
-      } else if (manualTypeSelect && manualTypeSelect.value === '불특정') {
-        effectiveType = '불특정 인원(실인원, 건수, 연인원)';
+    let existingAtt = [];
+    try {
+      const attRes = await API.fetchGAS('getAttendanceSheet', { programId: program.사업ID, date: dateStr, forceRefresh: true });
+      existingAtt = attRes.data || [];
+    } catch (e) {
+      console.error('Error fetching attendance sheet:', e);
+    }
+
+    // Determine initial type selection based on existing attendance data or program default
+    let initialType = '출석부';
+    if (existingAtt.some(a => a.이름 === '불특정_인원_입력')) {
+      initialType = '불특정';
+    } else if (existingAtt.some(a => a.이름 === '건수입력용_무명')) {
+      initialType = '건수';
+    } else if (existingAtt.some(a => a.이름 !== '건수입력용_무명' && a.이름 !== '불특정_인원_입력')) {
+      initialType = '출석부';
+    } else {
+      // Default from program's default performance type in 사업_마스터
+      if (program.실적유형 === '건수' || program.실적유형 === '건수만') {
+        initialType = '건수';
+      } else if (program.실적유형 === '불특정 인원(실인원, 건수, 연인원)' || program.실적유형 === '불특정') {
+        initialType = '불특정';
       } else {
-        effectiveType = '출석부';
+        initialType = '출석부';
       }
     }
 
-    if (effectiveType === '건수') {
-      if (countOnlyDiv) countOnlyDiv.classList.remove('hidden');
-    } else if (effectiveType === '불특정 인원(실인원, 건수, 연인원)') {
-      if (unspecDiv) unspecDiv.classList.remove('hidden');
-      
+    if (manualTypeSelect) {
+      manualTypeSelect.value = initialType;
+    }
+
+    await switchAttendanceTypeView(initialType, program, dateStr, existingAtt);
+  }
+
+  async function switchAttendanceTypeView(typeValue, program, dateStr, existingAtt = null) {
+    const countOnlyDiv = document.getElementById('count-only-section');
+    const membersDiv = document.getElementById('members-section');
+    const unspecDiv = document.getElementById('unspecified-section');
+    const typeHintDiv = document.getElementById('type-description-hint');
+
+    if (countOnlyDiv) countOnlyDiv.classList.add('hidden');
+    if (membersDiv) membersDiv.classList.add('hidden');
+    if (unspecDiv) unspecDiv.classList.add('hidden');
+
+    if (!existingAtt && program) {
       try {
         const attRes = await API.fetchGAS('getAttendanceSheet', { programId: program.사업ID, date: dateStr, forceRefresh: true });
-        const existingAtt = attRes.data || [];
-        const unspecAtt = existingAtt.find(a => a.이름 === '불특정_인원_입력');
-        
-        document.getElementById('unspec-real').value = unspecAtt ? (unspecAtt.실인원 || 0) : 0;
-        document.getElementById('unspec-count').value = unspecAtt ? (unspecAtt.건수 || 0) : 0;
-        document.getElementById('unspec-accum').value = unspecAtt ? (unspecAtt.연인원 || 0) : 0;
-        document.getElementById('unspec-staff').value = unspecAtt ? (unspecAtt.세부_직원 || 0) : 0;
-        document.getElementById('unspec-disabled').value = unspecAtt ? (unspecAtt.세부_장애인 || 0) : 0;
-        document.getElementById('unspec-nondisabled').value = unspecAtt ? (unspecAtt.세부_비장애인 || 0) : 0;
-        document.getElementById('unspec-remark').value = unspecAtt ? (unspecAtt.비고 || '') : '';
+        existingAtt = attRes.data || [];
       } catch (e) {
-        console.error('Error fetching unspec attendance:', e);
+        existingAtt = [];
       }
-    } else {
-      if (membersDiv) membersDiv.classList.remove('hidden');
+    }
+
+    if (typeValue === '건수') {
+      if (countOnlyDiv) countOnlyDiv.classList.remove('hidden');
+      if (typeHintDiv) typeHintDiv.textContent = '💡 실적 건수만 수량(숫자)으로 직접 입력합니다. (예: 협약 체결 건수, 물품 지원 건수 등)';
       
+      const countAtt = (existingAtt || []).find(a => a.이름 === '건수입력용_무명');
+      const countInput = document.getElementById('input-count');
+      if (countInput) countInput.value = countAtt ? (countAtt.건수 || 0) : 0;
+
+    } else if (typeValue === '불특정') {
+      if (unspecDiv) unspecDiv.classList.remove('hidden');
+      if (typeHintDiv) typeHintDiv.textContent = '💡 행사/축제 참여자 등 불특정 다수의 실인원, 건수, 연인원을 입력합니다.';
+
+      const unspecAtt = (existingAtt || []).find(a => a.이름 === '불특정_인원_입력');
+      document.getElementById('unspec-real').value = unspecAtt ? (unspecAtt.실인원 || 0) : 0;
+      document.getElementById('unspec-count').value = unspecAtt ? (unspecAtt.건수 || 0) : 0;
+      document.getElementById('unspec-accum').value = unspecAtt ? (unspecAtt.연인원 || 0) : 0;
+      document.getElementById('unspec-staff').value = unspecAtt ? (unspecAtt.세부_직원 || 0) : 0;
+      document.getElementById('unspec-disabled').value = unspecAtt ? (unspecAtt.세부_장애인 || 0) : 0;
+      document.getElementById('unspec-nondisabled').value = unspecAtt ? (unspecAtt.세부_비장애인 || 0) : 0;
+      document.getElementById('unspec-remark').value = unspecAtt ? (unspecAtt.비고 || '') : '';
+
+    } else { // '출석부'
+      if (membersDiv) membersDiv.classList.remove('hidden');
+      if (typeHintDiv) typeHintDiv.textContent = '💡 참석자/회원 명단에서 개인별 출석을 체크합니다. (실인원, 건수, 연인원 자동 합산)';
+
       // Fetch members for the program
       try {
         const teamName = user.role === '관리자' ? '' : user.team;
@@ -92,26 +133,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (program.사업명) {
           const normSearch = String(program.사업명).replace(/\s+/g, '');
-          console.log('[Attendance] Searching for program:', normSearch);
           currentMembers = allMembers.filter(m => {
             const mProgStr = String(m.사업명 || '').replace(/\s+/g, '');
-            const isMatch = mProgStr.includes(normSearch) || normSearch.includes(mProgStr);
-            if (isMatch) {
-              console.log('[Attendance] Matched member:', m.이름, 'with programs:', mProgStr);
-            }
-            return isMatch;
+            return mProgStr.includes(normSearch) || normSearch.includes(mProgStr);
           });
         } else {
           currentMembers = allMembers;
         }
         
-        // Also fetch today's attendance to pre-fill
-        const attRes = await API.fetchGAS('getAttendanceSheet', { programId: program.사업ID, date: dateStr, forceRefresh: true });
-        const existingAtt = attRes.data || [];
+        const attList = existingAtt || [];
         
         // Add members who are in existingAtt but not in currentMembers
-        existingAtt.forEach(att => {
-          if (!currentMembers.find(m => m.이름 === att.이름) && att.이름 !== '건수입력용_무명') {
+        attList.forEach(att => {
+          if (!currentMembers.find(m => m.이름 === att.이름) && att.이름 !== '건수입력용_무명' && att.이름 !== '불특정_인원_입력') {
             currentMembers.push({
               이름: att.이름,
               장애비장애구분: '비장애',
@@ -121,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         currentMembers.forEach(m => {
-          const att = existingAtt.find(a => a.이름 === m.이름);
+          const att = attList.find(a => a.이름 === m.이름);
           if (att) {
             m.attended = (att.출석여부 === 'O');
           } else {
@@ -267,9 +301,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const manualSelect = document.getElementById('manual-type-select');
   if (manualSelect) {
-    manualSelect.addEventListener('change', async () => {
-      if (currentProgram && currentProgram.실적유형 === '수동입력') {
-        await renderAttendanceSection(currentProgram);
+    manualSelect.addEventListener('change', async (e) => {
+      if (currentProgram) {
+        const dateStr = document.getElementById('attendance-date').value;
+        await switchAttendanceTypeView(e.target.value, currentProgram, dateStr);
       }
     });
   }
@@ -313,24 +348,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-save').addEventListener('click', async () => {
     if (!currentProgram) return;
     const dateStr = document.getElementById('attendance-date').value;
-    
-    let effectiveType = currentProgram.실적유형;
-    if (effectiveType === '수동입력') {
-      const manualTypeSelect = document.getElementById('manual-type-select');
-      if (manualTypeSelect && manualTypeSelect.value === '건수') {
-        effectiveType = '건수';
-      } else if (manualTypeSelect && manualTypeSelect.value === '불특정') {
-        effectiveType = '불특정 인원(실인원, 건수, 연인원)';
-      } else {
-        effectiveType = '출석부';
-      }
-    }
+    const manualTypeSelect = document.getElementById('manual-type-select');
+    const selectedType = manualTypeSelect ? manualTypeSelect.value : '출석부';
 
     try {
-      if (effectiveType === '건수') {
+      if (selectedType === '건수') {
         const count = document.getElementById('input-count').value;
         await API.fetchGAS('submitCountOnly', { programId: currentProgram.사업ID, date: dateStr, count: parseInt(count, 10) });
-      } else if (effectiveType === '불특정 인원(실인원, 건수, 연인원)') {
+      } else if (selectedType === '불특정') {
         const data = {
           realCount: parseInt(document.getElementById('unspec-real').value, 10) || 0,
           count: parseInt(document.getElementById('unspec-count').value, 10) || 0,
