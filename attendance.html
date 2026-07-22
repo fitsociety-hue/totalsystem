@@ -125,14 +125,29 @@
           <!-- Members list -->
           <div id="members-section" class="hidden">
             <div class="flex justify-between items-center mb-2 flex-wrap gap-2" style="background: rgba(59, 130, 246, 0.05); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.15);">
-              <div class="flex items-center gap-2">
-                <label class="form-label mb-0" style="font-weight:bold; font-size:13px; color:var(--color-primary-dark);">📌 수업 회차/구분:</label>
-                <select id="session-round-select" class="form-select" style="max-width: 170px; padding: 4px 8px; font-size: 13px; font-weight: 500;">
-                  <option value="1회차(정규)">1회차 (정규수업)</option>
-                  <option value="2회차(보강)">2회차 (보강수업)</option>
-                  <option value="3회차(기타)">3회차 (기타수업)</option>
-                </select>
-                <span class="text-sub" style="font-size:11px;">💡 같은 날 정규+보강 2회 이상 출석 시 회차 변경 후 각각 체크</span>
+              <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex items-center gap-1">
+                  <label class="form-label mb-0" style="font-weight:bold; font-size:13px; color:var(--color-primary-dark);">📌 수업 회차/구분:</label>
+                  <select id="session-round-select" class="form-select" style="max-width: 150px; padding: 4px 8px; font-size: 13px; font-weight: 500;">
+                    <option value="1회차(정규)">1회차 (정규수업)</option>
+                    <option value="2회차(보강)">2회차 (보강수업)</option>
+                    <option value="3회차(기타)">3회차 (기타수업)</option>
+                  </select>
+                </div>
+                <div class="flex items-center gap-1">
+                  <label class="form-label mb-0" style="font-weight:bold; font-size:13px; color:var(--color-primary-dark);">📅 요일별 명단 필터:</label>
+                  <select id="day-filter-select" class="form-select" style="max-width: 175px; padding: 4px 8px; font-size: 13px; font-weight: bold; border-color:var(--color-primary);">
+                    <option value="auto">⚡ 해당 요일만 자동 필터</option>
+                    <option value="all">전체 이용인 보기</option>
+                    <option value="월">월요일 이용인</option>
+                    <option value="화">화요일 이용인</option>
+                    <option value="수">수요일 이용인</option>
+                    <option value="목">목요일 이용인</option>
+                    <option value="금">금요일 이용인</option>
+                    <option value="토">토요일 이용인</option>
+                    <option value="일">일요일 이용인</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <button class="btn-ghost" id="btn-view-absences" style="font-size:12px; color:var(--color-error); border: 1px solid var(--color-error); padding: 4px 8px; font-weight: bold;">⚠️ 결석 사유 모아보기</button>

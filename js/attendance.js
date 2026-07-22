@@ -214,13 +214,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     grid.innerHTML = '';
     
     let filtered = currentMembers;
+    
+    // 1. 요일별 필터 적용 (수요일 등 선택 일자의 요일에 맞는 이용인 명단 자동 분류)
+    const daysMap = ['일', '월', '화', '수', '목', '금', '토'];
+    const dateVal = document.getElementById('attendance-date') ? document.getElementById('attendance-date').value : '';
+    const currentDayName = dateVal ? daysMap[new Date(dateVal).getDay()] : '';
+    const dayFilterEl = document.getElementById('day-filter-select');
+    const dayFilterVal = dayFilterEl ? dayFilterEl.value : 'auto';
+
+    let targetDay = null;
+    if (dayFilterVal === 'auto') {
+      targetDay = currentDayName;
+    } else if (dayFilterVal !== 'all') {
+      targetDay = dayFilterVal;
+    }
+
+    if (targetDay) {
+      filtered = filtered.filter(m => {
+        if (!m.요일 || m.요일 === '전체' || m.요일 === '' || m.요일 === '매일') return true;
+        return m.요일.includes(targetDay);
+      });
+    }
+
+    // 2. 이름 검색 필터 적용
     if (filter) {
-      filtered = currentMembers.filter(m => m.이름.includes(filter));
+      filtered = filtered.filter(m => m.이름.includes(filter));
     }
     
-    let attCount = currentMembers.filter(m => m.attended).length;
-    let absCount = currentMembers.filter(m => !m.attended).length;
-    document.getElementById('attendance-counter').textContent = `출석 ${attCount}명 / 결석 ${absCount}명 (전체 ${currentMembers.length}명)`;
+    let attCount = filtered.filter(m => m.attended).length;
+    let absCount = filtered.filter(m => !m.attended).length;
+    const dayTagStr = targetDay ? ` (${targetDay}요일 이용인)` : '';
+    document.getElementById('attendance-counter').textContent = `출석 ${attCount}명 / 결석 ${absCount}명 (전체 ${filtered.length}명${dayTagStr})`;
 
     if (filtered.length === 0) {
       grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 20px;">회원이 없습니다.</div>';
@@ -436,6 +460,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
       }
       modal.classList.add('active');
+    });
+  }
+
+  const sessionRoundSelect = document.getElementById('session-round-select');
+  if (sessionRoundSelect && !sessionRoundSelect.dataset.hasListener) {
+    sessionRoundSelect.dataset.hasListener = 'true';
+    sessionRoundSelect.addEventListener('change', (e) => {
+      const selectedRound = e.target.value;
+      // 회차 변경 시 출석 인원 상태 새로고침 (클린 리셋)
+      currentMembers.forEach(m => {
+        m.attended = false;
+        m.count = 1;
+        m.absenceReason = '';
+        m.remark = '';
+      });
+      expandedMemberName = null;
+      renderMembersGrid();
+      Utils.showToast(`[${selectedRound}] 출석 입력 상태로 새로고침 되었습니다.`, 'info');
+    });
+  }
+
+  const dayFilterSelect = document.getElementById('day-filter-select');
+  if (dayFilterSelect && !dayFilterSelect.dataset.hasListener) {
+    dayFilterSelect.dataset.hasListener = 'true';
+    dayFilterSelect.addEventListener('change', () => {
+      renderMembersGrid();
     });
   }
 

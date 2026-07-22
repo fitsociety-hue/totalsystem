@@ -171,7 +171,7 @@ function getHeadersForSheet(sheetName) {
   switch (sheetName) {
     case '직원_마스터': return ['직원ID', '이름', '팀명', '직위', '비밀번호', '상태', '담당사업IDs', '삭제비밀번호'];
     case '사업_마스터': return ['팀명', '사업분류', '세부사업분류', '사업명', '실적유형', '상태', '목표_실인원', '목표_건수', '목표_연인원', '담당자', '사업ID'];
-    case '회원_마스터': return ['이름', '시작일', '장애비장애구분', '구분', '상태', '팀명', '사업명', '메모'];
+    case '회원_마스터': return ['이름', '시작일', '장애비장애구분', '구분', '상태', '팀명', '사업명', '메모', '요일'];
     case '출석_원장': return ['출석ID', '날짜', '사업ID', '사업명', '팀명', '이름', '출석여부', '건수', '입력방식', '입력자', '입력시각', '실인원', '연인원', '세부_직원', '세부_장애인', '세부_비장애인', '비고'];
     case '실적_집계': return ['팀명', '사업명', '년도', '월', '실인원', '건수', '연인원', '목표대비_실인원(%)', '목표대비_건수(%)', '목표대비_연인원(%)'];
     case '실적_마스터': return ['년도', '기준', '팀명', '사업명', '목표_실인원', '목표_건수', '목표_연인원', '실적_실인원', '실적_건수', '실적_연인원', '달성률_실인원', '달성률_건수', '달성률_연인원'];
@@ -495,7 +495,7 @@ function getMembers(programId, status, programName, teamName) {
 function addMember(data) {
   const sheet = getSheet('회원_마스터');
   sheet.appendRow([
-    data.이름, data.시작일, data.장애비장애구분 || '비장애', data.구분 || '개별', data.상태 || '활성', data.팀명 || '', data.사업명 || '', data.메모 || ''
+    data.이름, data.시작일, data.장애비장애구분 || '비장애', data.구분 || '개별', data.상태 || '활성', data.팀명 || '', data.사업명 || '', data.메모 || '', data.요일 || '전체'
   ]);
   invalidateCache();
   return true;
@@ -506,8 +506,8 @@ function updateMember(name, data) {
   const vals = sheet.getDataRange().getValues();
   for (let i = 1; i < vals.length; i++) {
     if (vals[i][0] === name) {
-      sheet.getRange(i + 1, 1, 1, 8).setValues([[
-        data.이름, data.시작일, data.장애비장애구분 || '비장애', data.구분 || '개별', data.상태 || '활성', data.팀명 || '', data.사업명 || '', data.메모 || ''
+      sheet.getRange(i + 1, 1, 1, 9).setValues([[
+        data.이름, data.시작일, data.장애비장애구분 || '비장애', data.구분 || '개별', data.상태 || '활성', data.팀명 || '', data.사업명 || '', data.메모 || '', data.요일 || '전체'
       ]]);
       invalidateCache();
       return true;
@@ -521,10 +521,10 @@ function importMembersCSV(csvData) {
   const sheet = getSheet('회원_마스터');
   const newRows = csvData.map(row => [
     row.이름 || '', row.시작일 || '', row.장애비장애구분 || '비장애', row.구분 || '개별',
-    row.상태 || '활성', row.팀명 || '', row.사업명 || '', row.메모 || ''
+    row.상태 || '활성', row.팀명 || '', row.사업명 || '', row.메모 || '', row.요일 || '전체'
   ]);
   if (newRows.length > 0) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 8).setValues(newRows);
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 9).setValues(newRows);
     invalidateCache();
   }
   return true;

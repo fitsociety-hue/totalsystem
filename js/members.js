@@ -178,6 +178,7 @@ function renderTable() {
     tr.innerHTML = `
       <td data-label="이름"><strong>${nameStr}</strong></td>
       <td data-label="시작일">${Utils.formatDate(dateStr)}</td>
+      <td data-label="이용요일"><span class="badge badge-primary" style="font-size:11px;">${m.요일 || '전체'}</span></td>
       <td data-label="장애여부"><span class="badge ${m.장애비장애구분 === '장애' ? 'badge-warning' : 'badge-neutral'}">${m.장애비장애구분 || '비장애'}</span></td>
       <td data-label="구분"><span class="badge ${m.구분 === '그룹' ? 'badge-primary' : 'badge-neutral'}">${m.구분 || '개별'}</span></td>
       <td data-label="상태"><span class="badge ${m.상태 === '활성' ? 'badge-success' : (m.상태 === '보류' ? 'badge-warning' : 'badge-error')}">${m.상태 || '활성'}</span></td>
@@ -203,6 +204,10 @@ window.openMemberModal = function() {
   document.getElementById('original-name').value = '';
   document.getElementById('mem-start').value = Utils.formatDate(new Date());
   document.getElementById('mem-class').value = '개별';
+
+  document.querySelectorAll('input[name="mem-days"]').forEach(cb => {
+    cb.checked = (cb.value === '전체');
+  });
   
   const user = Auth.getUser();
   if (user && user.team && user.role !== '관리자') {
@@ -230,15 +235,24 @@ window.editMember = function(name) {
   document.getElementById('mem-team').value = m.팀명 || '';
   document.getElementById('mem-programs').value = m.사업명 || '';
   document.getElementById('mem-memo').value = m.메모 || '';
+
+  const savedDays = String(m.요일 || '전체').split(',');
+  document.querySelectorAll('input[name="mem-days"]').forEach(cb => {
+    cb.checked = savedDays.includes(cb.value);
+  });
   
   document.getElementById('member-modal').classList.add('active');
 }
 
 async function saveMember() {
   const isEdit = document.getElementById('original-name').value;
+  const dayCheckboxes = document.querySelectorAll('input[name="mem-days"]:checked');
+  const selectedDays = Array.from(dayCheckboxes).map(cb => cb.value).join(',');
+
   const data = {
     이름: document.getElementById('mem-name').value,
     시작일: document.getElementById('mem-start').value,
+    요일: selectedDays || '전체',
     장애비장애구분: document.getElementById('mem-type').value,
     구분: document.getElementById('mem-class').value,
     상태: document.getElementById('mem-status').value,

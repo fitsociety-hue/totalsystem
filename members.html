@@ -64,6 +64,7 @@
                 <tr>
                   <th>이름</th>
                   <th>시작일</th>
+                  <th>이용요일</th>
                   <th>장애구분</th>
                   <th>구분</th>
                   <th>상태</th>
@@ -74,7 +75,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr><td colspan="8" class="text-center">데이터를 불러오는 중입니다...</td></tr>
+                <tr><td colspan="10" class="text-center">데이터를 불러오는 중입니다...</td></tr>
               </tbody>
             </table>
           </div>
@@ -108,6 +109,19 @@
         <div class="form-group">
           <label class="form-label">시작일</label>
           <input type="date" id="mem-start" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">이용요일 <span style="font-size:12px; color:var(--color-primary);">★ 출석체크 요일별 명단 자동 분류</span></label>
+          <div class="flex gap-2 flex-wrap" style="font-size:13px; font-weight:bold; background:rgba(59,130,246,0.06); padding:8px; border-radius:6px;">
+            <label style="cursor:pointer;"><input type="checkbox" name="mem-days" value="월"> 월</label>
+            <label style="cursor:pointer;"><input type="checkbox" name="mem-days" value="화"> 화</label>
+            <label style="cursor:pointer;"><input type="checkbox" name="mem-days" value="수"> 수</label>
+            <label style="cursor:pointer;"><input type="checkbox" name="mem-days" value="목"> 목</label>
+            <label style="cursor:pointer;"><input type="checkbox" name="mem-days" value="금"> 금</label>
+            <label style="cursor:pointer;"><input type="checkbox" name="mem-days" value="토"> 토</label>
+            <label style="cursor:pointer;"><input type="checkbox" name="mem-days" value="일"> 일</label>
+            <label style="cursor:pointer; color:var(--color-primary-dark);"><input type="checkbox" name="mem-days" value="전체" checked> 매일/전체</label>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">장애비장애구분</label>
