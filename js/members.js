@@ -31,36 +31,72 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!file) return;
     
     const reader = new FileReader();
-    reader.onload = async (e) => {
-      const text = e.target.result;
+    reader.onload = async (evt) => {
+      const text = evt.target.result;
       const parsed = Utils.parseCSV(text);
       if (parsed.length > 0) {
-        // 중복 방지 필터링: 이름, 시작일, 장애비장애구분
-        const uniqueData = parsed.filter(newRow => {
-          const newRowDate = Utils.formatDate(newRow.시작일);
-          return !allMembers.some(existing => 
-            existing.이름 === newRow.이름 && 
-            Utils.formatDate(existing.시작일) === newRowDate && 
-            existing.장애비장애구분 === newRow.장애비장애구분
-          );
-        });
+        // 헤더 가공 및 키 정형화 (유연한 CSV 헤더 파싱)
+        const normalized = parsed.map(row => {
+          const keys = Object.keys(row);
+          const getVal = (possibleKeys) => {
+            for (let pk of possibleKeys) {
+              const foundKey = keys.find(k => k.replace(/\s+/g, '').includes(pk));
+              if (foundKey && row[foundKey]) return String(row[foundKey]).trim();
+            }
+            return '';
+          };
 
-        if (uniqueData.length === 0) {
-          Utils.showToast('모든 데이터가 이미 존재하여 업로드할 항목이 없습니다.', 'warning');
+          return {
+            이름: getVal(['이름', '성명', '회원명']),
+            시작일: getVal(['시작일', '등록일', '가입일', '일자']),
+            장애비장애구분: getVal(['장애비장애구분', '장애구분', '장애']) || '비장애',
+            구분: getVal(['구분', '회원구분']) || '개별',
+            상태: getVal(['상태']) || '활성',
+            팀명: getVal(['팀명', '소속팀', '팀']),
+            사업명: getVal(['사업명', '사업']),
+            메모: getVal(['메모', '비고'])
+          };
+        }).filter(r => r.이름 !== '');
+
+        if (normalized.length === 0) {
+          Utils.showToast('CSV 파일에서 유효한 회원 이름을 찾을 수 없습니다.', 'error');
           e.target.value = '';
           return;
         }
 
-        const excludedCount = parsed.length - uniqueData.length;
+        // 중복 방지 필터링: 이름, 시작일
+        const uniqueData = normalized.filter(newRow => {
+          const newRowDate = Utils.formatDate(newRow.시작일);
+          return !allMembers.some(existing => 
+            existing.이름 === newRow.이름 && 
+            (newRowDate === '' || Utils.formatDate(existing.시작일) === newRowDate)
+          );
+        });
+
+        if (uniqueData.length === 0) {
+          Utils.showToast('모든 회원이 이미 존재하여 업로드할 항목이 없습니다.', 'warning');
+          e.target.value = '';
+          return;
+        }
+
+        const excludedCount = normalized.length - uniqueData.length;
 
         try {
+          // 1. 메모리 즉시 반영 (0ms UI 갱신)
+          allMembers.push(...uniqueData);
+          applyFilters();
+
+          // 2. GAS DB 업로드 및 즉시 강제 갱신
           await API.fetchGAS('importMembersCSV', { csvData: uniqueData });
           let msg = `${uniqueData.length}건의 데이터가 업로드되었습니다.`;
           if (excludedCount > 0) msg += ` (중복 ${excludedCount}건 제외)`;
           Utils.showToast(msg, 'success');
-          await loadMembers();
-        } catch (err) { }
+          await loadMembers(true);
+        } catch (err) {
+          console.error('CSV import error:', err);
+        }
       }
+      e.target.value = '';
     };
     reader.readAsText(file, 'UTF-8');
     e.target.value = ''; // reset

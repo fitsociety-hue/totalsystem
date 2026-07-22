@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           let msg = `${uniqueData.length}건의 사업이 업로드되었습니다.`;
           if (excludedCount > 0) msg += ` (중복 ${excludedCount}건 제외)`;
           Utils.showToast(msg, 'success');
-          await loadPrograms();
+          await loadPrograms(true);
         } catch (err) { }
       }
     };

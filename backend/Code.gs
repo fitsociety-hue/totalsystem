@@ -428,15 +428,17 @@ function updateProgram(programId, data) {
 }
 
 function importProgramsCSV(csvData) {
+  if (!Array.isArray(csvData) || csvData.length === 0) return true;
   const sheet = getSheet('사업_마스터');
-  csvData.forEach(row => {
-    sheet.appendRow([
-      row.팀명, row.사업분류, row.세부사업분류, row.사업명, row.실적유형,
-      row.상태 || '활성', row.목표_실인원 || 0, row.목표_건수 || 0, row.목표_연인원 || 0,
-      row.담당자 || '', 'PROG_' + Math.floor(Math.random()*10000000)
-    ]);
-  });
-  invalidateCache();
+  const newRows = csvData.map(row => [
+    row.팀명 || '', row.사업분류 || '', row.세부사업분류 || '', row.사업명 || '', row.실적유형 || '실인원, 건수, 연인원',
+    row.상태 || '활성', row.목표_실인원 || 0, row.목표_건수 || 0, row.목표_연인원 || 0,
+    row.담당자 || '', 'PROG_' + Math.floor(Math.random() * 10000000)
+  ]);
+  if (newRows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 11).setValues(newRows);
+    invalidateCache();
+  }
   return true;
 }
 
@@ -522,13 +524,16 @@ function updateMember(name, data) {
 }
 
 function importMembersCSV(csvData) {
+  if (!Array.isArray(csvData) || csvData.length === 0) return true;
   const sheet = getSheet('회원_마스터');
-  csvData.forEach(row => {
-    sheet.appendRow([
-      row.이름, row.시작일, row.장애비장애구분 || '비장애', row.구분 || '개별', row.상태 || '활성', row.팀명 || '', row.사업명 || '', row.메모 || ''
-    ]);
-  });
-  invalidateCache();
+  const newRows = csvData.map(row => [
+    row.이름 || '', row.시작일 || '', row.장애비장애구분 || '비장애', row.구분 || '개별',
+    row.상태 || '활성', row.팀명 || '', row.사업명 || '', row.메모 || ''
+  ]);
+  if (newRows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 8).setValues(newRows);
+    invalidateCache();
+  }
   return true;
 }
 
