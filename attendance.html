@@ -74,17 +74,27 @@
           
           <!-- Unspecified input -->
           <div id="unspecified-section" class="hidden">
+            <div class="mb-2 p-2 rounded" style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2);">
+              <label class="flex items-center gap-2" style="font-weight: bold; cursor: pointer; font-size: 13px;">
+                <input type="checkbox" id="unspec-apply-real-check" checked style="width: 16px; height: 16px;">
+                <span>📌 누적 실인원에 신규 추가 반영 (당해 연도/기간 중 처음 참여자)</span>
+              </label>
+              <div class="text-sub mt-1" style="font-size: 11px; margin-left: 24px;">
+                💡 <b>실인원 반영 방법</b>: 이전 회기/달에 참여했던 기존 인원은 제외하고, <b>올해 새로 추가되는 신규 참석자 수</b>만 입력하세요. (예: 5명 중 4명이 기존 참여자이고 1명이 신규면 '1' 입력, 전원 기존 참여자면 체크 해제)
+              </div>
+            </div>
+
             <div class="flex gap-2" style="flex-wrap: wrap;">
-              <div class="form-group flex-1" style="min-width: 100px;">
-                <label class="form-label">실인원</label>
-                <input type="number" id="unspec-real" class="form-input" min="0" value="0">
+              <div class="form-group flex-1" style="min-width: 130px;">
+                <label class="form-label" style="font-weight: bold;">신규 반영 실인원</label>
+                <input type="number" id="unspec-real" class="form-input" min="0" value="0" placeholder="신규 추가 실인원">
               </div>
               <div class="form-group flex-1" style="min-width: 100px;">
-                <label class="form-label">건수</label>
+                <label class="form-label" style="font-weight: bold;">건수</label>
                 <input type="number" id="unspec-count" class="form-input" min="0" value="0">
               </div>
               <div class="form-group flex-1" style="min-width: 150px;">
-                <label class="form-label flex justify-between items-center">연인원 <button id="btn-toggle-unspec-details" class="btn-ghost" style="padding: 2px 6px; font-size: 12px; height: auto;">+ 세부내용 추가</button></label>
+                <label class="form-label flex justify-between items-center" style="font-weight: bold;">당일 총 연인원 <button id="btn-toggle-unspec-details" class="btn-ghost" style="padding: 2px 6px; font-size: 12px; height: auto;">+ 세부내용 추가</button></label>
                 <input type="number" id="unspec-accum" class="form-input" min="0" value="0">
               </div>
             </div>

@@ -110,16 +110,41 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } else if (typeValue === '불특정') {
       if (unspecDiv) unspecDiv.classList.remove('hidden');
-      if (typeHintDiv) typeHintDiv.textContent = '💡 행사/축제 참여자 등 불특정 다수의 실인원, 건수, 연인원을 입력합니다.';
+      if (typeHintDiv) typeHintDiv.textContent = '💡 행사/축제 참여자 등 불특정 다수의 실인원, 건수, 연인원을 입력합니다. (신규 참여자만 실인원에 반영)';
 
       const unspecAtt = (existingAtt || []).find(a => a.이름 === '불특정_인원_입력');
-      document.getElementById('unspec-real').value = unspecAtt ? (unspecAtt.실인원 || 0) : 0;
+      const realVal = unspecAtt ? (unspecAtt.실인원 || 0) : 0;
+      const checkEl = document.getElementById('unspec-apply-real-check');
+      const realInput = document.getElementById('unspec-real');
+      
+      if (checkEl) {
+        checkEl.checked = realVal > 0 || !unspecAtt;
+      }
+      if (realInput) {
+        realInput.value = realVal;
+        realInput.disabled = checkEl && !checkEl.checked;
+      }
+
       document.getElementById('unspec-count').value = unspecAtt ? (unspecAtt.건수 || 0) : 0;
       document.getElementById('unspec-accum').value = unspecAtt ? (unspecAtt.연인원 || 0) : 0;
       document.getElementById('unspec-staff').value = unspecAtt ? (unspecAtt.세부_직원 || 0) : 0;
       document.getElementById('unspec-disabled').value = unspecAtt ? (unspecAtt.세부_장애인 || 0) : 0;
       document.getElementById('unspec-nondisabled').value = unspecAtt ? (unspecAtt.세부_비장애인 || 0) : 0;
       document.getElementById('unspec-remark').value = unspecAtt ? (unspecAtt.비고 || '') : '';
+
+      if (checkEl && !checkEl.dataset.hasListener) {
+        checkEl.dataset.hasListener = 'true';
+        checkEl.addEventListener('change', (e) => {
+          if (!e.target.checked) {
+            realInput.dataset.prevVal = realInput.value;
+            realInput.value = 0;
+            realInput.disabled = true;
+          } else {
+            realInput.disabled = false;
+            realInput.value = realInput.dataset.prevVal || document.getElementById('unspec-accum').value || 0;
+          }
+        });
+      }
 
     } else { // '출석부'
       if (membersDiv) membersDiv.classList.remove('hidden');
@@ -356,8 +381,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const count = document.getElementById('input-count').value;
         await API.fetchGAS('submitCountOnly', { programId: currentProgram.사업ID, date: dateStr, count: parseInt(count, 10) });
       } else if (selectedType === '불특정') {
+        const applyRealCheck = document.getElementById('unspec-apply-real-check');
+        const isRealChecked = !applyRealCheck || applyRealCheck.checked;
         const data = {
-          realCount: parseInt(document.getElementById('unspec-real').value, 10) || 0,
+          realCount: isRealChecked ? (parseInt(document.getElementById('unspec-real').value, 10) || 0) : 0,
           count: parseInt(document.getElementById('unspec-count').value, 10) || 0,
           accumCount: parseInt(document.getElementById('unspec-accum').value, 10) || 0,
           staffCount: parseInt(document.getElementById('unspec-staff').value, 10) || 0,

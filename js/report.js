@@ -318,18 +318,21 @@ async function loadWritePrograms() {
         } else if (effectiveType === '불특정 인원(실인원, 건수, 연인원)' || effectiveType === '불특정') {
           const uAtt = unspecAtt || {};
           rateHtml = `
+            <div class="mb-1" style="font-size:11px; color:var(--color-primary-dark); background:rgba(59,130,246,0.06); padding:4px 8px; border-radius:4px;">
+              💡 <b>신규 반영 실인원</b>: 당해 연도/기간 중 처음 참석하는 신규 인원만 입력하세요. (기존 참여자는 제외)
+            </div>
             <div class="grid-cards mb-2" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
               <div class="form-group mb-0">
-                <label class="form-label" style="font-size:12px; font-weight:bold;">실인원</label>
-                <input type="number" id="perf-unspec-real-${p.사업ID}" class="form-input" value="${uAtt.실인원 || 0}">
+                <label class="form-label" style="font-size:12px; font-weight:bold;">신규 반영 실인원</label>
+                <input type="number" id="perf-unspec-real-${p.사업ID}" class="form-input" value="${uAtt.실인원 || 0}" placeholder="신규 추가 실인원">
               </div>
               <div class="form-group mb-0">
                 <label class="form-label" style="font-size:12px; font-weight:bold;">건수</label>
                 <input type="number" id="perf-unspec-count-${p.사업ID}" class="form-input" value="${uAtt.건수 || 0}">
               </div>
               <div class="form-group mb-0">
-                <label class="form-label" style="font-size:12px; font-weight:bold;">연인원 (자동합산)</label>
-                <input type="number" id="perf-unspec-accum-${p.사업ID}" class="form-input" value="${uAtt.연인원 || 0}" readonly>
+                <label class="form-label" style="font-size:12px; font-weight:bold;">당일 총 연인원</label>
+                <input type="number" id="perf-unspec-accum-${p.사업ID}" class="form-input" value="${uAtt.연인원 || 0}">
               </div>
             </div>
             <div class="grid-cards mb-2" style="grid-template-columns: repeat(3, 1fr); gap: 10px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 6px;">
