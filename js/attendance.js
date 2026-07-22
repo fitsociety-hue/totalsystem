@@ -154,23 +154,43 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const teamName = user.role === '관리자' ? '' : user.team;
         const res = await API.fetchGAS('getMembers', { programId: 'all', status: '활성', teamName });
-        const allMembers = res.data || [];
+        const rawMembers = res.data || [];
+        // 이름이 비어있는 무효/유령 회원 사전 완벽 제거
+        const validMembers = rawMembers.filter(m => m && m.이름 && String(m.이름).trim() !== '');
         
         if (program.사업명) {
           const normSearch = String(program.사업명).replace(/\s+/g, '');
-          currentMembers = allMembers.filter(m => {
+          const normTeam = String(program.팀명 || '').replace(/\s+/g, '');
+
+          currentMembers = validMembers.filter(m => {
             const mProgStr = String(m.사업명 || '').replace(/\s+/g, '');
-            return mProgStr.includes(normSearch) || normSearch.includes(mProgStr);
+            const mTeamStr = String(m.팀명 || '').replace(/\s+/g, '');
+
+            // 회원의 사업명이 등록되어 있는 경우
+            if (mProgStr !== '') {
+              // 쉼표나 빗금으로 구분된 사업명 분할 매칭
+              const progTokens = mProgStr.split(/[,/]/).map(t => t.trim()).filter(Boolean);
+              return progTokens.some(pt => pt.includes(normSearch) || normSearch.includes(pt));
+            }
+            
+            // 회원의 사업명이 없는 경우: 팀명이 일치하는지 확인
+            if (mTeamStr !== '' && normTeam !== '') {
+              return mTeamStr === normTeam;
+            }
+
+            return false;
           });
         } else {
-          currentMembers = allMembers;
+          currentMembers = validMembers;
         }
         
         const attList = existingAtt || [];
         
-        // Add members who are in existingAtt but not in currentMembers
+        // 과거 출석 기록에 있는 회원 추가 (무효 무명 및 불특정 인원 제외)
         attList.forEach(att => {
-          if (!currentMembers.find(m => m.이름 === att.이름) && att.이름 !== '건수입력용_무명' && att.이름 !== '불특정_인원_입력') {
+          if (att.이름 && String(att.이름).trim() !== '' && 
+              att.이름 !== '건수입력용_무명' && att.이름 !== '불특정_인원_입력' &&
+              !currentMembers.find(m => m.이름 === att.이름)) {
             currentMembers.push({
               이름: att.이름,
               장애비장애구분: '비장애',
@@ -213,7 +233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!grid) return;
     grid.innerHTML = '';
     
-    let filtered = currentMembers;
+    let filtered = currentMembers.filter(m => m && m.이름 && String(m.이름).trim() !== '');
     
     // 1. 요일별 필터 적용 (수요일 등 선택 일자의 요일에 맞는 이용인 명단 자동 분류)
     const daysMap = ['일', '월', '화', '수', '목', '금', '토'];
