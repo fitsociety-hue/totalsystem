@@ -250,7 +250,11 @@ function getSheetDataAsJSON(sheetName, bypassCache = false) {
   for (let i = 1; i < data.length; i++) {
     let obj = {};
     for (let j = 0; j < expectedHeaders.length; j++) {
-      obj[expectedHeaders[j]] = data[i][j];
+      let val = data[i][j];
+      if (typeof val === 'string') {
+        val = val.replace(/[\uFFFD?]{2,3}인원/g, '연인원').replace(/\uFFFD/g, '');
+      }
+      obj[expectedHeaders[j]] = val;
     }
     rows.push(obj);
   }

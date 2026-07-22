@@ -108,14 +108,19 @@ function renderGrid() {
     return;
   }
 
-  grid.innerHTML = filtered.map(p => `
+  grid.innerHTML = filtered.map(p => {
+    const cleanType = String(p.실적유형 || '')
+      .replace(/[\uFFFD?]{2,3}인원/g, '연인원')
+      .replace(/\uFFFD/g, '');
+
+    return `
     <div class="glass-card">
       <div class="flex justify-between items-start mb-2">
         <h4 style="margin:0">${p.사업명}</h4>
         <span class="badge ${p.상태 === '활성' ? 'badge-success' : 'badge-warning'}">${p.상태 || '활성'}</span>
       </div>
       <div class="mb-2">
-        <span class="badge badge-primary">${p.실적유형}</span>
+        <span class="badge badge-primary">${cleanType}</span>
         <span class="text-sub" style="font-size: 12px; margin-left: 8px;">${p.팀명}</span>
         ${p.담당자 ? `<span class="text-sub" style="font-size: 12px; margin-left: 8px;">담당: ${p.담당자}</span>` : ''}
       </div>
@@ -125,7 +130,8 @@ function renderGrid() {
         <button class="btn-ghost" onclick="editProgram('${p.사업ID}')">수정</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 window.openProgramModal = function() {

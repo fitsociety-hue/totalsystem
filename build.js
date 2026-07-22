@@ -46,6 +46,28 @@ function fetchFromGAS(action) {
   });
 }
 
+function sanitizeData(item) {
+  if (typeof item === 'string') {
+    return item
+      .replace(/[\uFFFD?]{2,3}인원/g, '연인원')
+      .replace(/목[\uFFFD?]+_/g, '목표_')
+      .replace(/\uFFFD/g, '');
+  }
+  if (Array.isArray(item)) {
+    return item.map(sanitizeData);
+  }
+  if (item && typeof item === 'object') {
+    const clean = {};
+    for (const k in item) {
+      let cleanKey = k.replace(/목[\uFFFD?]+_/g, '목표_').replace(/\uFFFD/g, '');
+      if (cleanKey === '목표_실인') cleanKey = '목표_실인원';
+      clean[cleanKey] = sanitizeData(item[k]);
+    }
+    return clean;
+  }
+  return item;
+}
+
 async function build() {
   console.log('[Build] Fetching latest snapshot data from Google Apps Script...');
   
@@ -69,11 +91,11 @@ async function build() {
   };
 
   if (response && response.success && response.data) {
-    snapshotData = {
+    snapshotData = sanitizeData({
       ...response.data,
       timestamp: new Date().toISOString()
-    };
-    console.log('[Build] Successfully fetched snapshot data!');
+    });
+    console.log('[Build] Successfully fetched and sanitized snapshot data!');
     console.log(` - Teams: ${snapshotData.teams ? snapshotData.teams.length : 0}`);
     console.log(` - Programs: ${snapshotData.programs ? snapshotData.programs.length : 0}`);
     console.log(` - Members: ${snapshotData.members ? snapshotData.members.length : 0}`);
@@ -90,7 +112,7 @@ async function build() {
 
   // Save individual action endpoint JSONs for fast fetch
   const writeStaticJson = (fileName, data) => {
-    fs.writeFileSync(path.join(dataDir, fileName), JSON.stringify({ success: true, data }, null, 2));
+    fs.writeFileSync(path.join(dataDir, fileName), JSON.stringify({ success: true, data: sanitizeData(data) }, null, 2));
   };
 
   writeStaticJson('getMembers.json', snapshotData.members || []);
@@ -102,7 +124,7 @@ async function build() {
   writeStaticJson('getDailyWorkLogs.json', snapshotData.workLogs || []);
   writeStaticJson('getSupervision.json', snapshotData.supervision || []);
 
-  console.log('[Build] All static pre-rendered JSON files generated in /data!');
+  console.log('[Build] All static pre-rendered JSON files generated and sanitized in /data!');
 }
 
 build();
