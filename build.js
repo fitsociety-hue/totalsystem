@@ -49,17 +49,10 @@ function fetchFromGAS(action) {
 async function build() {
   console.log('[Build] Fetching latest snapshot data from Google Apps Script...');
   
-  const dirs = [
-    path.join(__dirname, 'data'),
-    path.join(__dirname, 'public'),
-    path.join(__dirname, 'public', 'data')
-  ];
-
-  dirs.forEach(d => {
-    if (!fs.existsSync(d)) {
-      fs.mkdirSync(d, { recursive: true });
-    }
-  });
+  const dataDir = path.join(__dirname, 'data');
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
 
   const response = await fetchFromGAS('getAllSnapshotData');
 
@@ -86,27 +79,22 @@ async function build() {
 
   // Save full snapshot JSON
   const snapshotContent = JSON.stringify(snapshotData, null, 2);
-  fs.writeFileSync(path.join(__dirname, 'data', 'snapshot.json'), snapshotContent);
-  fs.writeFileSync(path.join(__dirname, 'public', 'data', 'snapshot.json'), snapshotContent);
+  fs.writeFileSync(path.join(dataDir, 'snapshot.json'), snapshotContent);
 
   // Save individual action endpoint JSONs for fast fetch
   const membersJson = JSON.stringify({ success: true, data: snapshotData.members || [] }, null, 2);
-  fs.writeFileSync(path.join(__dirname, 'data', 'getMembers.json'), membersJson);
-  fs.writeFileSync(path.join(__dirname, 'public', 'data', 'getMembers.json'), membersJson);
+  fs.writeFileSync(path.join(dataDir, 'getMembers.json'), membersJson);
 
   const programsJson = JSON.stringify({ success: true, data: snapshotData.programs || [] }, null, 2);
-  fs.writeFileSync(path.join(__dirname, 'data', 'getPrograms.json'), programsJson);
-  fs.writeFileSync(path.join(__dirname, 'public', 'data', 'getPrograms.json'), programsJson);
+  fs.writeFileSync(path.join(dataDir, 'getPrograms.json'), programsJson);
 
   const teamsJson = JSON.stringify({ success: true, data: snapshotData.teams || [] }, null, 2);
-  fs.writeFileSync(path.join(__dirname, 'data', 'getTeams.json'), teamsJson);
-  fs.writeFileSync(path.join(__dirname, 'public', 'data', 'getTeams.json'), teamsJson);
+  fs.writeFileSync(path.join(dataDir, 'getTeams.json'), teamsJson);
 
   const statsJson = JSON.stringify({ success: true, data: snapshotData.stats || [] }, null, 2);
-  fs.writeFileSync(path.join(__dirname, 'data', 'getStats.json'), statsJson);
-  fs.writeFileSync(path.join(__dirname, 'public', 'data', 'getStats.json'), statsJson);
+  fs.writeFileSync(path.join(dataDir, 'getStats.json'), statsJson);
 
-  console.log('[Build] Static pre-rendered JSON files generated in /data and /public/data!');
+  console.log('[Build] Static pre-rendered JSON files generated in /data!');
 }
 
 build();
