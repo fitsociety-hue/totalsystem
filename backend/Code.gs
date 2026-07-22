@@ -2,6 +2,25 @@
 // 강동어울림복지관 출석부 시스템 백엔드 (Google Apps Script)
 // ==============================================================================
 
+const VERCEL_DEPLOY_HOOK_URL = 'https://api.vercel.com/v1/integrations/deploy/prj_SeBouDgwwUD5SZKKVrRVScsrOj15/PGbiFusVne';
+
+function triggerVercelDeploy() {
+  try {
+    const url = VERCEL_DEPLOY_HOOK_URL;
+    if (!url) return;
+    const options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ trigger: 'GAS_Data_Update', timestamp: new Date().toISOString() }),
+      muteHttpExceptions: true
+    };
+    UrlFetchApp.fetch(url, options);
+    Logger.log('Vercel Deploy Hook triggered successfully');
+  } catch (e) {
+    Logger.log('Error triggering Vercel Deploy Hook: ' + e.toString());
+  }
+}
+
 function doOptions(e) {
   return ContentService.createTextOutput('')
     .setMimeType(ContentService.MimeType.TEXT);
@@ -18,14 +37,16 @@ function doGet(e) {
 function handleRequest(e, method) {
   try {
     let payload = {};
-    if (method === 'POST') {
+    if (e.parameter && e.parameter.action) {
+      payload.action = e.parameter.action;
+    } else if (method === 'POST') {
       if (e.parameter.data) {
         payload = JSON.parse(e.parameter.data);
       } else if (e.postData && e.postData.contents) {
         payload = JSON.parse(e.postData.contents);
       }
     } else {
-      if (e.parameter.data) {
+      if (e.parameter && e.parameter.data) {
         payload = JSON.parse(e.parameter.data);
       }
     }
@@ -33,9 +54,9 @@ function handleRequest(e, method) {
     const action = payload.action;
     let result = null;
 
-    // 인증 검증 로직 (login, register 등은 제외)
+    // 인증 검증 로직 (login, register, getAllSnapshotData 등은 제외)
     let user = null;
-    const bypassActions = ['login', 'register', 'verifyQRToken', 'selfCheckIn', 'setupAutoSyncTrigger'];
+    const bypassActions = ['login', 'register', 'verifyQRToken', 'selfCheckIn', 'setupAutoSyncTrigger', 'getAllSnapshotData'];
     if (!bypassActions.includes(action)) {
       if (!payload.token) throw new Error('인증 토큰이 필요합니다.');
       user = verifyToken(payload.token);
@@ -50,6 +71,7 @@ function handleRequest(e, method) {
     switch (action) {
       case 'login': result = login(payload.team, payload.name, payload.password); break;
       case 'register': result = registerUser(payload.team, payload.name, payload.password, payload.role); break;
+      case 'getAllSnapshotData': result = getAllSnapshotData(); break;
       
       // 회원 관리
       case 'getMembers': result = getMembers(payload.programId, payload.status, payload.programName, payload.teamName); break;
@@ -1351,6 +1373,17 @@ function getCacheVersion() {
 
 function invalidateCache() {
   PropertiesService.getScriptProperties().setProperty('DATA_VERSION', Date.now().toString());
+  triggerVercelDeploy();
+}
+
+function getAllSnapshotData() {
+  return {
+    teams: getTeams(),
+    programs: getSheetDataAsJSON('사업_마스터'),
+    members: getSheetDataAsJSON('회원_마스터'),
+    stats: getSheetDataAsJSON('실적_집계'),
+    timestamp: new Date().toISOString()
+  };
 }
 
 function putCacheChunked(cacheKey, str) {

@@ -1,0 +1,13 @@
+{
+  "name": "totalsystem",
+  "version": "1.0.0",
+  "description": "강동어울림복지관 출석부 시스템 백엔드 및 Vercel 정적 갱신 배포",
+  "main": "build.js",
+  "scripts": {
+    "build": "node build.js",
+    "start": "node build.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
