@@ -222,6 +222,7 @@ function getSheetDataAsJSON(sheetName, bypassCache = false) {
       else if (expectedH === '팀명') foundIdx = rawHeaders.findIndex(rh => rh.includes('팀명') || rh.includes('소속'));
       else if (expectedH === '사업명') foundIdx = rawHeaders.findIndex(rh => rh.includes('사업명') || rh.includes('사업'));
       else if (expectedH === '메모') foundIdx = rawHeaders.findIndex(rh => rh.includes('메모') || rh.includes('비고'));
+      else if (expectedH === '요일') foundIdx = rawHeaders.findIndex(rh => rh.includes('요일') || rh.includes('이용요일') || rh.includes('수업요일'));
     }
     
     colMap[expectedH] = foundIdx;
@@ -500,8 +501,9 @@ function getMembers(programId, status, programName, teamName) {
 
 function addMember(data) {
   const sheet = getSheet('회원_마스터');
+  const daysVal = data.요일 || data.이용요일 || '전체';
   sheet.appendRow([
-    data.이름, data.시작일, data.장애비장애구분 || '비장애', data.구분 || '개별', data.상태 || '활성', data.팀명 || '', data.사업명 || '', data.메모 || '', data.요일 || '전체'
+    data.이름, data.시작일, data.장애비장애구분 || '비장애', data.구분 || '개별', data.상태 || '활성', data.팀명 || '', data.사업명 || '', data.메모 || '', daysVal
   ]);
   invalidateCache();
   return true;
@@ -510,10 +512,11 @@ function addMember(data) {
 function updateMember(name, data) {
   const sheet = getSheet('회원_마스터');
   const vals = sheet.getDataRange().getValues();
+  const daysVal = data.요일 || data.이용요일 || '전체';
   for (let i = 1; i < vals.length; i++) {
     if (vals[i][0] === name) {
       sheet.getRange(i + 1, 1, 1, 9).setValues([[
-        data.이름, data.시작일, data.장애비장애구분 || '비장애', data.구분 || '개별', data.상태 || '활성', data.팀명 || '', data.사업명 || '', data.메모 || '', data.요일 || '전체'
+        data.이름, data.시작일, data.장애비장애구분 || '비장애', data.구분 || '개별', data.상태 || '활성', data.팀명 || '', data.사업명 || '', data.메모 || '', daysVal
       ]]);
       invalidateCache();
       return true;
@@ -527,7 +530,7 @@ function importMembersCSV(csvData) {
   const sheet = getSheet('회원_마스터');
   const newRows = csvData.map(row => [
     row.이름 || '', row.시작일 || '', row.장애비장애구분 || '비장애', row.구분 || '개별',
-    row.상태 || '활성', row.팀명 || '', row.사업명 || '', row.메모 || '', row.요일 || '전체'
+    row.상태 || '활성', row.팀명 || '', row.사업명 || '', row.메모 || '', row.요일 || row.이용요일 || '전체'
   ]);
   if (newRows.length > 0) {
     sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 9).setValues(newRows);
