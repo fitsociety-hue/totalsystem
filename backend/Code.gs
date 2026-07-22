@@ -193,72 +193,62 @@ function getSheetDataAsJSON(sheetName, bypassCache = false) {
   const sheet = getSheet(sheetName);
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
-  if (data.length === 0) return [];
-  
-  const expectedHeaders = getHeadersForSheet(sheetName);
-  const currentHeaders = data[0].map(h => String(h).trim());
-  
-  // 정확한 헤더 일치 여부 확인
-  const isExactMatch = expectedHeaders.length === currentHeaders.length && 
-                       expectedHeaders.every((h, i) => currentHeaders[i] === h);
-  
-  if (!isExactMatch) {
-    // 1) 헤더가 아예 없거나 첫 컬럼부터 다르면 (신규 시트 또는 잘못된 시트) -> 초기화
-    if (currentHeaders.length === 0 || currentHeaders[0] !== expectedHeaders[0]) {
-      sheet.insertRowBefore(1);
-      sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]).setFontWeight("bold").setBackground("#f3f3f3");
-      sheet.setFrozenRows(1);
-      return getSheetDataAsJSON(sheetName);
-    }
-    
-    // 2) 첫 컬럼은 맞지만 (ex: 이름) 다른 컬럼 구성이 변경된 경우 -> 기존 데이터 마이그레이션
-    const oldRows = [];
-    if (data.length > 1) {
-      for (let i = 1; i < data.length; i++) {
-        let obj = {};
-        for (let j = 0; j < currentHeaders.length; j++) {
-          if (currentHeaders[j]) {
-            obj[currentHeaders[j]] = data[i][j];
-          }
-        }
-        oldRows.push(obj);
-      }
-    }
-    
-    // 시트 초기화 후 새 헤더 작성
-    sheet.clear();
-    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]).setFontWeight("bold").setBackground("#f3f3f3");
-    sheet.setFrozenRows(1);
-    
-    // 기존 데이터 새 포맷에 맞게 재작성
-    if (oldRows.length > 0) {
-      const newData = oldRows.map(row => {
-        return expectedHeaders.map(h => {
-          if (h === '구분' && !row[h]) return '개별';
-          if (h === '장애비장애구분' && !row[h]) return '비장애';
-          if (h === '상태' && !row[h]) return '활성';
-          return row[h] !== undefined ? row[h] : '';
-        });
-      });
-      sheet.getRange(2, 1, newData.length, expectedHeaders.length).setValues(newData);
-    }
-    
-    // 업데이트된 시트 기준으로 다시 데이터 불러오기
-    return getSheetDataAsJSON(sheetName);
-  }
-
   if (data.length < 2) return [];
   
+  const expectedHeaders = getHeadersForSheet(sheetName);
+  
+  // 첫 번째 행(헤더) 정문화 (BOM, 특수문자 제거)
+  const rawHeaders = data[0].map(h => String(h || '').replace(/[\uFEFF\u200B\r]/g, '').trim());
+
+  // 예상 헤더에 대해 시트 내 컬럼 인덱스 매핑 (유연한 별칭 대응)
+  const colMap = {};
+  expectedHeaders.forEach(expectedH => {
+    // 1. 정확히 매칭되는 컬럼 탐색
+    let foundIdx = rawHeaders.findIndex(rh => rh === expectedH);
+    
+    // 2. 별칭 매칭 탐색
+    if (foundIdx === -1) {
+      if (expectedH === '이름') foundIdx = rawHeaders.findIndex(rh => rh.includes('이름') || rh.includes('성명') || rh.includes('회원명'));
+      else if (expectedH === '시작일') foundIdx = rawHeaders.findIndex(rh => rh.includes('시작일') || rh.includes('등록일') || rh.includes('가입일'));
+      else if (expectedH === '장애비장애구분') foundIdx = rawHeaders.findIndex(rh => rh.includes('장애비장애') || rh.includes('장애구분') || rh === '장애');
+      else if (expectedH === '구분') foundIdx = rawHeaders.findIndex(rh => rh === '구분' || rh.includes('회원구분'));
+      else if (expectedH === '상태') foundIdx = rawHeaders.findIndex(rh => rh === '상태');
+      else if (expectedH === '팀명') foundIdx = rawHeaders.findIndex(rh => rh.includes('팀명') || rh.includes('소속'));
+      else if (expectedH === '사업명') foundIdx = rawHeaders.findIndex(rh => rh.includes('사업명') || rh.includes('사업'));
+      else if (expectedH === '메모') foundIdx = rawHeaders.findIndex(rh => rh.includes('메모') || rh.includes('비고'));
+    }
+    
+    colMap[expectedH] = foundIdx;
+  });
+
   const rows = [];
   for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row || row.every(cell => String(cell || '').trim() === '')) continue;
+
     let obj = {};
-    for (let j = 0; j < expectedHeaders.length; j++) {
-      let val = data[i][j];
+    expectedHeaders.forEach((expectedH, j) => {
+      let colIdx = colMap[expectedH];
+      let val = (colIdx !== undefined && colIdx !== -1 && row[colIdx] !== undefined) ? row[colIdx] : (row[j] !== undefined ? row[j] : '');
+      
       if (typeof val === 'string') {
-        val = val.replace(/[\uFFFD?]{2,3}인원/g, '연인원').replace(/\uFFFD/g, '');
+        val = val.replace(/[\uFFFD?]{2,3}인원/g, '연인원').replace(/\uFFFD/g, '').trim();
       }
-      obj[expectedHeaders[j]] = val;
+      
+      if (expectedH === '구분' && !val) val = '개별';
+      if (expectedH === '장애비장애구분' && !val) val = '비장애';
+      if (expectedH === '상태' && !val) val = '활성';
+      
+      obj[expectedH] = val;
+    });
+
+    if (sheetName === '회원_마스터' && (!obj['이름'] || String(obj['이름']).trim() === '')) {
+      const fallbackName = row[0] || row[1] || '';
+      if (String(fallbackName).trim() !== '') {
+        obj['이름'] = String(fallbackName).trim();
+      }
     }
+
     rows.push(obj);
   }
   

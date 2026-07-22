@@ -172,19 +172,21 @@ function renderTable() {
 
   const fragment = document.createDocumentFragment();
   pageData.forEach(m => {
+    const nameStr = m.이름 || m.성명 || m.회원명 || m['\uFEFF이름'] || '';
+    const dateStr = m.시작일 || m.등록일 || m.가입일 || '';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td data-label="이름">${m.이름}</td>
-      <td data-label="시작일">${Utils.formatDate(m.시작일)}</td>
-      <td data-label="장애여부"><span class="badge ${m.장애비장애구분 === '장애' ? 'badge-warning' : 'badge-neutral'}">${m.장애비장애구분}</span></td>
+      <td data-label="이름"><strong>${nameStr}</strong></td>
+      <td data-label="시작일">${Utils.formatDate(dateStr)}</td>
+      <td data-label="장애여부"><span class="badge ${m.장애비장애구분 === '장애' ? 'badge-warning' : 'badge-neutral'}">${m.장애비장애구분 || '비장애'}</span></td>
       <td data-label="구분"><span class="badge ${m.구분 === '그룹' ? 'badge-primary' : 'badge-neutral'}">${m.구분 || '개별'}</span></td>
-      <td data-label="상태"><span class="badge ${m.상태 === '활성' ? 'badge-success' : (m.상태 === '보류' ? 'badge-warning' : 'badge-error')}">${m.상태}</span></td>
+      <td data-label="상태"><span class="badge ${m.상태 === '활성' ? 'badge-success' : (m.상태 === '보류' ? 'badge-warning' : 'badge-error')}">${m.상태 || '활성'}</span></td>
       <td data-label="팀명">${m.팀명 || ''}</td>
       <td data-label="사업명">${m.사업명 || ''}</td>
       <td data-label="메모">${m.메모 || ''}</td>
       <td data-label="관리">
-        <button class="btn-ghost" onclick="editMember('${m.이름}')">수정</button>
-        ${(Auth.hasRole('팀장') || Auth.hasRole('관리자')) ? `<button class="btn-ghost" style="color:var(--color-error);" onclick="requestDeleteMember('${m.이름}')">삭제</button>` : ''}
+        <button class="btn-ghost" onclick="editMember('${nameStr}')">수정</button>
+        ${(Auth.hasRole('팀장') || Auth.hasRole('관리자')) ? `<button class="btn-ghost" style="color:var(--color-error);" onclick="requestDeleteMember('${nameStr}')">삭제</button>` : ''}
       </td>
     `;
     fragment.appendChild(tr);
