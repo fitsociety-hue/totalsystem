@@ -169,16 +169,16 @@ function renderTable(programs) {
   
   html += `
     <tr style="background-color: #f1f5f9; font-weight: bold;">
-      <td colspan="2" class="text-center">총계</td>
-      <td data-label="목표 실인원">${Utils.formatNumber(totalTargets.real)}</td>
-      <td data-label="목표 건수">${Utils.formatNumber(totalTargets.count)}</td>
-      <td data-label="목표 연인원">${Utils.formatNumber(totalTargets.accum)}</td>
-      <td data-label="실적 실인원">${Utils.formatNumber(totalActuals.real)}</td>
-      <td data-label="실적 건수">${Utils.formatNumber(totalActuals.count)}</td>
-      <td data-label="실적 연인원">${Utils.formatNumber(totalActuals.accum)}</td>
-      <td data-label="달성률(실인원)"><span style="color:${getColor(getRate(totalActuals.real, totalTargets.real))}">${getRate(totalActuals.real, totalTargets.real)}%</span></td>
-      <td data-label="달성률(건수)"><span style="color:${getColor(getRate(totalActuals.count, totalTargets.count))}">${getRate(totalActuals.count, totalTargets.count)}%</span></td>
-      <td data-label="달성률(연인원)"><span style="color:${getColor(getRate(totalActuals.accum, totalTargets.accum))}">${getRate(totalActuals.accum, totalTargets.accum)}%</span></td>
+      <td colspan="2" class="td-header">총계</td>
+      <td data-label="목표 실인원"><span class="td-value">${Utils.formatNumber(totalTargets.real)}</span></td>
+      <td data-label="목표 건수"><span class="td-value">${Utils.formatNumber(totalTargets.count)}</span></td>
+      <td data-label="목표 연인원"><span class="td-value">${Utils.formatNumber(totalTargets.accum)}</span></td>
+      <td data-label="실적 실인원"><span class="td-value">${Utils.formatNumber(totalActuals.real)}</span></td>
+      <td data-label="실적 건수"><span class="td-value">${Utils.formatNumber(totalActuals.count)}</span></td>
+      <td data-label="실적 연인원"><span class="td-value">${Utils.formatNumber(totalActuals.accum)}</span></td>
+      <td data-label="달성률(실인원)"><span class="td-value" style="color:${getColor(getRate(totalActuals.real, totalTargets.real))}">${getRate(totalActuals.real, totalTargets.real)}%</span></td>
+      <td data-label="달성률(건수)"><span class="td-value" style="color:${getColor(getRate(totalActuals.count, totalTargets.count))}">${getRate(totalActuals.count, totalTargets.count)}%</span></td>
+      <td data-label="달성률(연인원)"><span class="td-value" style="color:${getColor(getRate(totalActuals.accum, totalTargets.accum))}">${getRate(totalActuals.accum, totalTargets.accum)}%</span></td>
     </tr>
   `;
 
@@ -193,33 +193,33 @@ function renderTable(programs) {
   sortedTeams.forEach(team => {
     html += `
       <tr style="background-color: #e2e8f0; font-weight: bold;">
-        <td colspan="2" class="text-center">${team.name || '미분류'} 소계</td>
-        <td data-label="목표 실인원">${Utils.formatNumber(team.targets.real)}</td>
-        <td data-label="목표 건수">${Utils.formatNumber(team.targets.count)}</td>
-        <td data-label="목표 연인원">${Utils.formatNumber(team.targets.accum)}</td>
-        <td data-label="실적 실인원">${Utils.formatNumber(team.actuals.real)}</td>
-        <td data-label="실적 건수">${Utils.formatNumber(team.actuals.count)}</td>
-        <td data-label="실적 연인원">${Utils.formatNumber(team.actuals.accum)}</td>
-        <td data-label="달성률(실인원)"><span style="color:${getColor(getRate(team.actuals.real, team.targets.real))}">${getRate(team.actuals.real, team.targets.real)}%</span></td>
-        <td data-label="달성률(건수)"><span style="color:${getColor(getRate(team.actuals.count, team.targets.count))}">${getRate(team.actuals.count, team.targets.count)}%</span></td>
-        <td data-label="달성률(연인원)"><span style="color:${getColor(getRate(team.actuals.accum, team.targets.accum))}">${getRate(team.actuals.accum, team.targets.accum)}%</span></td>
+        <td colspan="2" class="td-header">${team.name || '미분류'} 소계</td>
+        <td data-label="목표 실인원"><span class="td-value">${Utils.formatNumber(team.targets.real)}</span></td>
+        <td data-label="목표 건수"><span class="td-value">${Utils.formatNumber(team.targets.count)}</span></td>
+        <td data-label="목표 연인원"><span class="td-value">${Utils.formatNumber(team.targets.accum)}</span></td>
+        <td data-label="실적 실인원"><span class="td-value">${Utils.formatNumber(team.actuals.real)}</span></td>
+        <td data-label="실적 건수"><span class="td-value">${Utils.formatNumber(team.actuals.count)}</span></td>
+        <td data-label="실적 연인원"><span class="td-value">${Utils.formatNumber(team.actuals.accum)}</span></td>
+        <td data-label="달성률(실인원)"><span class="td-value" style="color:${getColor(getRate(team.actuals.real, team.targets.real))}">${getRate(team.actuals.real, team.targets.real)}%</span></td>
+        <td data-label="달성률(건수)"><span class="td-value" style="color:${getColor(getRate(team.actuals.count, team.targets.count))}">${getRate(team.actuals.count, team.targets.count)}%</span></td>
+        <td data-label="달성률(연인원)"><span class="td-value" style="color:${getColor(getRate(team.actuals.accum, team.targets.accum))}">${getRate(team.actuals.accum, team.targets.accum)}%</span></td>
       </tr>
     `;
     
     team.programs.forEach(p => {
       html += `
         <tr>
-          <td data-label="팀명">${p.팀명 || '-'}</td>
-          <td data-label="사업명">${p.사업명 || '-'}</td>
-          <td data-label="목표 실인원">${Utils.formatNumber(p.목표_실인원 || 0)}</td>
-          <td data-label="목표 건수">${Utils.formatNumber(p.목표_건수 || 0)}</td>
-          <td data-label="목표 연인원">${Utils.formatNumber(p.목표_연인원 || 0)}</td>
-          <td data-label="실적 실인원" style="font-weight: 500;">${Utils.formatNumber(p.실인원 || 0)}</td>
-          <td data-label="실적 건수" style="font-weight: 500;">${Utils.formatNumber(p.건수 || 0)}</td>
-          <td data-label="실적 연인원" style="font-weight: 500;">${Utils.formatNumber(p.연인원 || 0)}</td>
-          <td data-label="달성률(실인원)"><span style="color:${getColor(p.목표대비_실인원)}; font-weight: bold;">${p.목표대비_실인원 || 0}%</span></td>
-          <td data-label="달성률(건수)"><span style="color:${getColor(p.목표대비_건수)}; font-weight: bold;">${p.목표대비_건수 || 0}%</span></td>
-          <td data-label="달성률(연인원)"><span style="color:${getColor(p.목표대비_연인원)}; font-weight: bold;">${p.목표대비_연인원 || 0}%</span></td>
+          <td data-label="팀명"><span class="td-value">${p.팀명 || '-'}</span></td>
+          <td data-label="사업명"><span class="td-value" style="font-weight:bold; color:var(--color-primary-dark);">${p.사업명 || '-'}</span></td>
+          <td data-label="목표 실인원"><span class="td-value">${Utils.formatNumber(p.목표_실인원 || 0)}</span></td>
+          <td data-label="목표 건수"><span class="td-value">${Utils.formatNumber(p.목표_건수 || 0)}</span></td>
+          <td data-label="목표 연인원"><span class="td-value">${Utils.formatNumber(p.목표_연인원 || 0)}</span></td>
+          <td data-label="실적 실인원"><span class="td-value" style="font-weight: 500;">${Utils.formatNumber(p.실인원 || 0)}</span></td>
+          <td data-label="실적 건수"><span class="td-value" style="font-weight: 500;">${Utils.formatNumber(p.건수 || 0)}</span></td>
+          <td data-label="실적 연인원"><span class="td-value" style="font-weight: 500;">${Utils.formatNumber(p.연인원 || 0)}</span></td>
+          <td data-label="달성률(실인원)"><span class="td-value" style="color:${getColor(p.목표대비_실인원)}; font-weight: bold;">${p.목표대비_실인원 || 0}%</span></td>
+          <td data-label="달성률(건수)"><span class="td-value" style="color:${getColor(p.목표대비_건수)}; font-weight: bold;">${p.목표대비_건수 || 0}%</span></td>
+          <td data-label="달성률(연인원)"><span class="td-value" style="color:${getColor(p.목표대비_연인원)}; font-weight: bold;">${p.목표대비_연인원 || 0}%</span></td>
         </tr>
       `;
     });

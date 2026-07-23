@@ -9,6 +9,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!Auth.requireAuth()) return;
   Auth.updateUserUI();
 
+  if (window.innerWidth <= 768) {
+    const mainContent = document.querySelector('.main-content .content-body');
+    if (mainContent) {
+      mainContent.innerHTML = `
+        <div class="glass-card text-center" style="padding: 40px 20px; margin-top: 20px;">
+          <div style="font-size: 48px; margin-bottom: 16px;">📱</div>
+          <h2 style="margin-bottom: 12px; color: var(--color-primary-dark);">PC 웹 전용 페이지</h2>
+          <p style="color: var(--color-text-sub); line-height: 1.6; margin-bottom: 24px;">
+            모바일 화면에서는 회원 관리 기능을 지원하지 않습니다.<br>
+            회원 등록 및 관리는 PC 웹 환경에서 이용해 주세요.
+          </p>
+          <a href="dashboard.html" class="btn-primary" style="text-decoration: none; display: inline-block; padding: 10px 24px;">대시보드로 이동</a>
+        </div>
+      `;
+    }
+    return;
+  }
+
   await loadMembers();
 
   document.getElementById('btn-search').addEventListener('click', applyFilters);

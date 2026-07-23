@@ -199,7 +199,7 @@ async function renderLeaderDashboard(container, teamName, forceRefresh = false) 
     </div>
     
     <!-- 조회 기간 및 상세 실적 표 영역 -->
-    <div class="glass-card mb-3">
+    <div class="glass-card mb-3 mobile-hidden">
       <div class="flex justify-between items-center mb-2">
         <h3 style="margin:0;">사업별 상세 실적</h3>
         <div class="flex gap-2 items-center">
@@ -237,7 +237,7 @@ async function renderLeaderDashboard(container, teamName, forceRefresh = false) 
     </div>
 
     <!-- 월별 실적 보고서 작성 영역 -->
-    <div class="glass-card mb-3">
+    <div class="glass-card mb-3 mobile-hidden">
       <h3 class="mb-3">월별 실적 보고서 작성</h3>
       <div class="grid-cards" style="grid-template-columns: 1fr 1fr; gap: 16px;">
         <div>
