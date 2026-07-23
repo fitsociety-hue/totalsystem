@@ -8,13 +8,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('attendance-date').value = Utils.formatDate(new Date());
 
   const user = Auth.getUser();
-  // Fetch programs for dropdown
+  // Fetch programs for dropdown - 역할별 필터링
   let teamName = (user.role === '관리자' || !user.team) ? '' : user.team; 
   let programs = await ProgramsLogic.loadTeamPrograms(teamName);
 
-  // 팀별 사업이 없거나 미정인 경우 전체 사업 목록으로 자동 폴백하여 드롭다운 미표출 방지
-  if (!programs || programs.length === 0) {
-    programs = await ProgramsLogic.loadTeamPrograms('');
+  // 관리자가 아닌 경우: 본인 담당 사업만 필터링 (팀명 + 이름 기준)
+  if (user.role !== '관리자') {
+    const myPrograms = programs.filter(p => p.담당자 && String(p.담당자).includes(user.name));
+    // 본인 담당 사업이 있으면 그것만 표시, 없으면 팀 전체 사업 폴백
+    if (myPrograms.length > 0) {
+      programs = myPrograms;
+    }
   }
   
   let currentProgram = null;

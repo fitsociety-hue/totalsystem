@@ -51,17 +51,17 @@ const ProgramsLogic = {
     });
 
     container.innerHTML = `
-      <div class="grid-cards" style="margin-bottom: 20px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
         <div>
           <label class="form-label" style="font-weight: bold;">세부분류</label>
-          <select id="sel-cat2" class="form-select" style="height: 42px; font-size: 14px;">
+          <select id="sel-cat2" class="form-select" style="width: 100%; height: 44px; font-size: 14px; padding: 8px 12px; box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             <option value="">선택</option>
             ${Object.keys(categories).map(c2 => `<option value="${c2}">${c2}</option>`).join('')}
           </select>
         </div>
         <div>
           <label class="form-label" style="font-weight: bold;">사업명</label>
-          <select id="sel-prog" class="form-select" disabled style="height: 42px; font-size: 14px;">
+          <select id="sel-prog" class="form-select" disabled style="width: 100%; height: 44px; font-size: 14px; padding: 8px 12px; box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             <option value="">선택</option>
           </select>
         </div>
