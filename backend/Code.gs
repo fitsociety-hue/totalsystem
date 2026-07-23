@@ -973,8 +973,9 @@ function calculateStatsCore(progs, targetYear, targetMonths, attData, memberMap)
           if (!pPriorNames.has(a.이름)) pNames.add(a.이름);
         }
         const dateStr = formatDateStr(a.날짜);
+        const matchType = String(a.비고 || '').match(/\[수업구분:\s*([^\]]+)\]/);
         const matchRound = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
-        const roundStr = matchRound ? matchRound[1].trim() : '1회차(정규)';
+        const roundStr = matchType ? matchType[1].trim() : (matchRound ? matchRound[1].trim() : '정규수업');
         const sessionKey = dateStr + '___' + roundStr;
         
         if (!pMemberDaily[sessionKey]) pMemberDaily[sessionKey] = [];
