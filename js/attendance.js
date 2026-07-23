@@ -191,12 +191,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateSessionSummary(attList);
 
         const sessionRoundSelect = document.getElementById('session-round-select');
-        const selectedRound = sessionRoundSelect ? sessionRoundSelect.value.trim() : '1회차(정규)';
+        const selectedRound = sessionRoundSelect ? sessionRoundSelect.value.trim() : '정규수업';
 
         function isAttMatchSession(att, targetRound) {
-          const match = String(att.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
-          const attRound = match ? match[1].trim() : '1회차(정규)';
-          return attRound === targetRound || (targetRound.startsWith('1회차') && !match);
+          const raw = String(att.비고 || '');
+          const matchType = raw.match(/\[수업구분:\s*([^\]]+)\]/);
+          const matchRound = raw.match(/\[회차:\s*([^\]]+)\]/);
+          const attRound = matchType ? matchType[1].trim() : (matchRound ? matchRound[1].trim() : '정규수업');
+          return attRound === targetRound || (targetRound === '정규수업' && !matchType && !matchRound);
         }
 
         const currentRoundAttList = attList.filter(a => isAttMatchSession(a, selectedRound));
@@ -283,8 +285,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const roundsMap = {};
     attList.forEach(a => {
       if (a.출석여부 === 'O' && a.이름 !== '건수입력용_무명' && a.이름 !== '불특정_인원_입력') {
-        const match = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
-        const roundName = match ? match[1].trim() : '1회차(정규)';
+        const raw = String(a.비고 || '');
+        const matchType = raw.match(/\[수업구분:\s*([^\]]+)\]/);
+        const matchRound = raw.match(/\[회차:\s*([^\]]+)\]/);
+        const roundName = matchType ? matchType[1].trim() : (matchRound ? matchRound[1].trim() : '정규수업');
         roundsMap[roundName] = (roundsMap[roundName] || 0) + 1;
       }
     });
@@ -951,12 +955,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const fragment = document.createDocumentFragment();
     list.forEach(a => {
-      const match = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
-      const roundName = match ? match[1].trim() : '1회차(정규)';
+      const raw = String(a.비고 || '');
+      const matchType = raw.match(/\[수업구분:\s*([^\]]+)\]/);
+      const matchRound = raw.match(/\[회차:\s*([^\]]+)\]/);
+      const roundName = matchType ? matchType[1].trim() : (matchRound ? matchRound[1].trim() : '정규수업');
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td data-label="날짜">${Utils.formatDate(a.날짜)}</td>
-        <td data-label="회차/시간대"><span class="badge badge-primary" style="font-size:11px;">${roundName}</span></td>
+        <td data-label="수업구분"><span class="badge badge-primary" style="font-size:11px;">${roundName}</span></td>
         <td data-label="사업명"><strong>${a.사업명 || '-'}</strong></td>
         <td data-label="이름"><strong>${a.이름 || '-'}</strong></td>
         <td data-label="구분">${a.세부_장애인 ? '장애' : '일반'}</td>
@@ -969,16 +975,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     tbody.appendChild(fragment);
   }
 
-  // 出석자 명부 엑셀(CSV) 내보내기
+  // 출석자 명부 엑셀(CSV) 내보내기
   function exportAttendanceLogsCSV() {
     if (cachedAttLogs.length === 0) {
       return Utils.showToast('다운로드할 출석 명부 데이터가 없습니다. 먼저 조회해 주세요.', 'warning');
     }
-    const headers = ['날짜', '회차/시간대', '팀명', '사업명', '이름', '장애여부', '입력방식', '입력자', '입력시각'];
+    const headers = ['날짜', '수업구분', '팀명', '사업명', '이름', '장애여부', '입력방식', '입력자', '입력시각'];
     let csv = headers.join(',') + '\n';
     cachedAttLogs.forEach(a => {
-      const match = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
-      const roundName = match ? match[1].trim() : '1회차(정규)';
+      const raw = String(a.비고 || '');
+      const matchType = raw.match(/\[수업구분:\s*([^\]]+)\]/);
+      const matchRound = raw.match(/\[회차:\s*([^\]]+)\]/);
+      const roundName = matchType ? matchType[1].trim() : (matchRound ? matchRound[1].trim() : '정규수업');
       csv += [
         Utils.formatDate(a.날짜),
         `"${roundName}"`,
@@ -1031,21 +1039,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const fragment = document.createDocumentFragment();
     list.forEach(a => {
-      const matchRound = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
-      const roundName = matchRound ? matchRound[1].trim() : '1회차(정규)';
+      const raw = String(a.비고 || '');
+      const matchType = raw.match(/\[수업구분:\s*([^\]]+)\]/);
+      const matchRound = raw.match(/\[회차:\s*([^\]]+)\]/);
+      const roundName = matchType ? matchType[1].trim() : (matchRound ? matchRound[1].trim() : '정규수업');
       
       let reason = '-';
-      const matchReason = String(a.비고 || '').match(/결석사유:\s*([^/]+)/);
+      const matchReason = raw.match(/결석사유:\s*([^/]+)/);
       if (matchReason) {
         reason = matchReason[1].trim();
-      } else if (a.비고 && !a.비고.includes('[회차:')) {
+      } else if (a.비고 && !a.비고.includes('[수업구분:') && !a.비고.includes('[회차:')) {
         reason = a.비고;
       }
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td data-label="날짜">${Utils.formatDate(a.날짜)}</td>
-        <td data-label="수업회차/시간대"><span class="badge badge-primary" style="font-size:11px;">${roundName}</span></td>
+        <td data-label="수업구분"><span class="badge badge-primary" style="font-size:11px;">${roundName}</span></td>
         <td data-label="사업명"><strong>${a.사업명 || '-'}</strong></td>
         <td data-label="이름"><strong>${a.이름 || '-'}</strong></td>
         <td data-label="장애구분">${a.세부_장애인 > 0 ? '<span class="badge badge-warning">장애</span>' : '<span class="badge badge-neutral">비장애</span>'}</td>
@@ -1061,15 +1071,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (cachedTabAbsences.length === 0) {
       return Utils.showToast('다운로드할 결석 사유 데이터가 없습니다. 먼저 현황을 조회해 주세요.', 'warning');
     }
-    const headers = ['날짜', '수업회차/시간대', '팀명', '사업명', '이름', '장애구분', '결석사유'];
+    const headers = ['날짜', '수업구분', '팀명', '사업명', '이름', '장애구분', '결석사유'];
     let csv = headers.join(',') + '\n';
     cachedTabAbsences.forEach(a => {
-      const matchRound = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
-      const roundName = matchRound ? matchRound[1].trim() : '1회차(정규)';
+      const raw = String(a.비고 || '');
+      const matchType = raw.match(/\[수업구분:\s*([^\]]+)\]/);
+      const matchRound = raw.match(/\[회차:\s*([^\]]+)\]/);
+      const roundName = matchType ? matchType[1].trim() : (matchRound ? matchRound[1].trim() : '정규수업');
       let reason = '-';
-      const matchReason = String(a.비고 || '').match(/결석사유:\s*([^/]+)/);
+      const matchReason = raw.match(/결석사유:\s*([^/]+)/);
       if (matchReason) reason = matchReason[1].trim();
-      else if (a.비고 && !a.비고.includes('[회차:')) reason = a.비고;
+      else if (a.비고 && !a.비고.includes('[수업구분:') && !a.비고.includes('[회차:')) reason = a.비고;
 
       csv += [
         Utils.formatDate(a.날짜),

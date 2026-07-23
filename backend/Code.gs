@@ -567,7 +567,7 @@ function checkAttendance(programId, date, attendanceList, user, sessionRound) {
   const prog = programs.find(p => p.사업ID === programId);
   if (!prog) throw new Error('사업을 찾을 수 없습니다.');
   
-  const roundTag = sessionRound ? sessionRound.trim() : '1회차(정규)';
+  const roundTag = sessionRound ? sessionRound.trim() : '정규수업';
   deleteExistingAttendance(programId, date, roundTag);
 
   const inputterName = (user && user.name) ? user.name : '시스템';
@@ -580,10 +580,10 @@ function checkAttendance(programId, date, attendanceList, user, sessionRound) {
       const count = att.출석여부 === 'O' ? (Number(att.건수) || 1) : 0;
       let rawRemark = att.비고 || '';
       
-      // 회차 태그 포함하여 비고 생성
+      // 수업구분 태그 포함하여 비고 생성
       let remark = rawRemark;
-      if (!remark.includes('[회차:')) {
-        remark = `[회차:${roundTag}] ` + remark;
+      if (!remark.includes('[수업구분:') && !remark.includes('[회차:')) {
+        remark = `[수업구분:${roundTag}] ` + remark;
       }
       
       newRows.push([
@@ -686,12 +686,15 @@ function deleteExistingAttendance(programId, date, sessionRound) {
 
     let isMatch = (rowProgId === programId && rowDate === date);
     if (isMatch && targetRoundStr !== '') {
-      const hasTargetTag = rowRemark.includes(`[회차:${targetRoundStr}]`) || rowRemark.includes(`[회차: ${targetRoundStr}]`);
-      const hasAnyTag = rowRemark.includes('[회차:');
+      const hasTargetTag = rowRemark.includes(`[수업구분:${targetRoundStr}]`) || 
+                           rowRemark.includes(`[회차:${targetRoundStr}]`) || 
+                           rowRemark.includes(`[수업구분: ${targetRoundStr}]`) || 
+                           rowRemark.includes(`[회차: ${targetRoundStr}]`);
+      const hasAnyTag = rowRemark.includes('[수업구분:') || rowRemark.includes('[회차:');
       
       if (hasTargetTag) {
         isMatch = true;
-      } else if (!hasAnyTag && (targetRoundStr === '1회차(정규)' || targetRoundStr === '1회차')) {
+      } else if (!hasAnyTag && (targetRoundStr === '정규수업' || targetRoundStr.includes('1회차'))) {
         isMatch = true;
       } else {
         isMatch = false;
