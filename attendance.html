@@ -168,11 +168,6 @@
                   <option value="일">일요일 이용인</option>
                 </select>
               </div>
-              <div class="filter-item filter-item-btn">
-                <button class="btn-ghost filter-btn-absence" id="btn-view-absences">
-                  ⚠️ 결석사유 모아보기
-                </button>
-              </div>
             </div>
 
             <div class="flex flex-mobile-col justify-between items-center mb-2">
@@ -198,12 +193,12 @@
           <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
             <h3 style="margin: 0;">Step 3. 출석자 명부 관리 및 엑셀 추출</h3>
             <div class="sub-filter-controls">
-              <select id="att-log-unit" class="form-select" style="max-width: 120px; font-weight: bold;">
+              <select id="att-log-unit" class="form-select sub-filter-select">
                 <option value="day">일 단위</option>
                 <option value="week">주 단위</option>
                 <option value="month" selected>월 단위</option>
               </select>
-              <input type="date" id="att-log-date" class="form-input" style="max-width: 150px;">
+              <input type="date" id="att-log-date" class="form-input sub-filter-date">
               <button class="btn-secondary" id="btn-load-att-logs" style="font-weight: bold;">📊 명부 조회</button>
               <button class="btn-primary" id="btn-export-att-logs" style="font-weight: bold; background: #10B981; border-color: #10B981;">📥 엑셀 다운로드</button>
             </div>
@@ -240,12 +235,12 @@
               <p class="text-sub" style="font-size: 13px; margin: 0;">일/주/월 단위로 결석 사유를 통합 조회하고 엑셀로 내보낼 수 있습니다.</p>
             </div>
             <div class="sub-filter-controls">
-              <select id="absence-tab-unit" class="form-select" style="max-width: 120px; font-weight: bold;">
+              <select id="absence-tab-unit" class="form-select sub-filter-select">
                 <option value="day">일 단위</option>
                 <option value="week">주 단위</option>
                 <option value="month" selected>월 단위</option>
               </select>
-              <input type="date" id="absence-tab-date" class="form-input" style="max-width: 150px;">
+              <input type="date" id="absence-tab-date" class="form-input sub-filter-date">
               <button class="btn-secondary" id="btn-load-tab-absences" style="font-weight: bold;">📊 현황 조회</button>
               <button class="btn-primary" id="btn-export-tab-absences" style="font-weight: bold; background: #EF4444; border-color: #EF4444;">📥 엑셀 다운로드</button>
             </div>
