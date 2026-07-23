@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentMembers = [];
   let expandedMemberName = null;
 
-  ProgramsLogic.renderProgramDropdowns(programs, 'dropdowns-container', async (selected) => {
+  await ProgramsLogic.renderProgramDropdowns(programs, 'dropdowns-container', async (selected) => {
     currentProgram = selected;
     const infoDiv = document.getElementById('selected-program-info');
     const attSection = document.getElementById('attendance-section');

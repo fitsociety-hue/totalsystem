@@ -8,10 +8,12 @@ const ProgramsLogic = {
   
   loadTeamPrograms: async function(teamName = '', forceRefresh = false) {
     try {
-      const res = await API.fetchGAS('getPrograms', { teamName, forceRefresh });
+      const res = await API.fetchGAS('getPrograms', { forceRefresh });
       let progs = res.data || [];
-      // 활성화된 사업 필터링 및 이름 보장
-      progs = progs.filter(p => String(p.상태 || '').trim() !== '비활성' && p.사업명 && String(p.사업명).trim() !== '');
+      
+      // 활성화된 사업만 필터링
+      progs = progs.filter(p => p && p.사업명 && String(p.사업명).trim() !== '' && String(p.상태 || '').trim() !== '비활성');
+
       if (teamName && teamName !== '전체' && teamName !== '관리자') {
         const teamProgs = progs.filter(p => p.팀명 === teamName);
         if (teamProgs.length > 0) return teamProgs;
@@ -24,9 +26,18 @@ const ProgramsLogic = {
   },
   
   // Renders cascaded dropdowns
-  renderProgramDropdowns: function(programs, containerId, onChangeCallback) {
+  renderProgramDropdowns: async function(programs, containerId, onChangeCallback) {
     const container = document.getElementById(containerId);
     if (!container) return;
+    
+    // 만약 데이터가 비어있다면 라이브 서버에서 100% 복구 로드
+    if (!programs || programs.length === 0) {
+      try {
+        programs = await this.loadTeamPrograms('', true);
+      } catch (e) {
+        programs = [];
+      }
+    }
     
     // Group programs by classification
     // program: {팀명, 사업분류, 세부사업분류, 사업명, 실적유형, 상태, 사업ID}
