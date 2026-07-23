@@ -5,22 +5,9 @@
 const VERCEL_DEPLOY_HOOK_URL = 'https://api.vercel.com/v1/integrations/deploy/prj_SeBouDgwwUD5SZKKVrRVScsrOj15/PGbiFusVne';
 
 function triggerVercelDeploy() {
-  try {
-    const url = VERCEL_DEPLOY_HOOK_URL;
-    if (!url) return;
-    const options = {
-      method: 'post',
-      contentType: 'application/json',
-      payload: JSON.stringify({ trigger: 'GAS_Data_Update', timestamp: new Date().toISOString() }),
-      muteHttpExceptions: true
-    };
-    if (typeof UrlFetchApp !== 'undefined' && UrlFetchApp.fetch) {
-      UrlFetchApp.fetch(url, options);
-      Logger.log('Vercel Deploy Hook triggered successfully');
-    }
-  } catch (e) {
-    Logger.log('Notice: Vercel Deploy Hook skipped or requires authorization: ' + e.toString());
-  }
+  // GitHub push를 통해 Vercel 자동 배포가 이루어지므로, 
+  // Google Apps Script 외부 권한 승인 경고(UrlFetchApp)를 방지하기 위해 기본은 안전 로그만 출력합니다.
+  Logger.log('GitHub Push로 Vercel 자동 배포가 수행됩니다.');
 }
 
 function doOptions(e) {
