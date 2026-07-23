@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzu5AR9wmzSpWOXb8kOcpAEzJ99712Z62JjdFHMNhZjOzX1BE5gxYkU9ONQgoDLxwtt/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzbUDZ25HtTKZvRVDWRhDrEZxO56j38IpP2FSuVEKQ-_gaPFh0KtbxrnHIMISb_OSp6/exec';
 
 function fetchFromGAS(action) {
   return new Promise((resolve) => {
