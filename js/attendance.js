@@ -752,11 +752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       Utils.showToast('저장 중 네트워크 동기화 실패. 다시 시도해 주세요.', 'error');
     }
   });
-    } catch (e) {
-      console.error('Save attendance error:', e);
-      Utils.showToast('저장 중 오류가 발생했습니다: ' + (e.message || e), 'error');
-    }
-  });
+
 
   // QR Code Generation
   document.getElementById('btn-show-qr').addEventListener('click', async () => {
