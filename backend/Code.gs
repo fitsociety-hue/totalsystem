@@ -855,12 +855,14 @@ function calculateStatsCore(progs, targetYear, targetMonths, attData, memberMap)
   });
 
   const minTargetMonth = Math.min(...targetMonths);
+  // 조회 대상 기간 시작일 (targetYear년 minTargetMonth월 1일 00:00:00)
+  const periodStartDate = new Date(targetYear, minTargetMonth - 1, 1);
+
+  // 이전 출석 이력: 해당 사업에서 조회 대상 기간 시작일 이전 출석 기록 전체
   const priorAtt = attData.filter(a => {
     if (!progIds.includes(a.사업ID)) return false;
     const d = new Date(a.날짜);
-    if (d.getFullYear() !== targetYear) return false;
-    const mVal = d.getMonth() + 1;
-    return mVal < minTargetMonth;
+    return d < periodStartDate;
   });
 
   const priorNamesByProg = {};
@@ -1107,11 +1109,10 @@ function getAllStats(year, periodType, periodValue) {
   });
 
   const minTargetMonth = Math.min(...targetMonths);
+  const periodStartDate = new Date(targetYear, minTargetMonth - 1, 1);
   const priorAtt = attData.filter(a => {
     const d = new Date(a.날짜);
-    if (d.getFullYear() !== targetYear) return false;
-    const mVal = d.getMonth() + 1;
-    return mVal < minTargetMonth;
+    return d < periodStartDate;
   });
 
   const grandPriorNames = new Set();
