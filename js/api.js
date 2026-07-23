@@ -109,6 +109,9 @@ const API = {
       if (params.programName) {
         list = list.filter(m => String(m.사업명 || '').trim() === params.programName);
       }
+      if (params.groupDiv) {
+        list = list.filter(m => String(m.그룹구분 || m['그룹/반 구분'] || '').includes(params.groupDiv));
+      }
       return list;
     }
 
