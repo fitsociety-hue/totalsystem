@@ -774,3 +774,73 @@ button {
     border-radius: 8px;
   }
 }
+
+/* ==============================================================================
+   출석부 관리 / 결석사유 관리 메인 탭 및 서브 컨트롤 모바일 최적화
+   ============================================================================== */
+.main-tab-bar {
+  display: flex;
+  gap: 8px;
+}
+
+.main-tab-btn {
+  font-size: 14px;
+  font-weight: bold;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.sub-filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sub-filter-controls select,
+.sub-filter-controls input[type="date"],
+.sub-filter-controls button {
+  height: 38px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .main-tab-bar {
+    width: 100%;
+    margin-top: 6px;
+  }
+  
+  .main-tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    font-size: 14px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+
+  .sub-filter-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .sub-filter-controls select,
+  .sub-filter-controls input[type="date"],
+  .sub-filter-controls button {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 42px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

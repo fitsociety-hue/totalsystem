@@ -33,9 +33,9 @@
       <div class="content-body">
         <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
           <h2>출석체크</h2>
-          <div class="flex gap-2">
-            <button id="tab-btn-attendance" class="btn-primary active" style="font-size: 14px; font-weight: bold; padding: 8px 16px;" onclick="switchMainTab('attendance')">📋 출석부 관리</button>
-            <button id="tab-btn-absence" class="btn-secondary" style="font-size: 14px; font-weight: bold; padding: 8px 16px;" onclick="switchMainTab('absence')">⚠️ 결석사유 관리</button>
+          <div class="main-tab-bar">
+            <button id="tab-btn-attendance" class="btn-primary main-tab-btn active" onclick="switchMainTab('attendance')">📋 출석부 관리</button>
+            <button id="tab-btn-absence" class="btn-secondary main-tab-btn" onclick="switchMainTab('absence')">⚠️ 결석사유 관리</button>
           </div>
         </div>
         
@@ -202,7 +202,7 @@
         <div class="glass-card mb-3 hidden" id="attendance-log-section">
           <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
             <h3 style="margin: 0;">Step 3. 출석자 명부 관리 및 엑셀 추출</h3>
-            <div class="flex items-center gap-2 flex-wrap">
+            <div class="sub-filter-controls">
               <select id="att-log-unit" class="form-select" style="max-width: 120px; font-weight: bold;">
                 <option value="day">일 단위</option>
                 <option value="week">주 단위</option>
@@ -244,7 +244,7 @@
               <h3 style="color: var(--color-error); margin-bottom: 4px;">⚠️ 기간별 결석 사유 현황 및 관리</h3>
               <p class="text-sub" style="font-size: 13px; margin: 0;">일/주/월 단위로 결석 사유를 통합 조회하고 엑셀로 내보낼 수 있습니다.</p>
             </div>
-            <div class="flex items-center gap-2 flex-wrap">
+            <div class="sub-filter-controls">
               <select id="absence-tab-unit" class="form-select" style="max-width: 120px; font-weight: bold;">
                 <option value="day">일 단위</option>
                 <option value="week">주 단위</option>
