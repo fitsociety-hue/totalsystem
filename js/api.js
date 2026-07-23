@@ -238,7 +238,13 @@ const API = {
       Utils.hideLoading();
       
       if (!responseData.success) {
-        throw new Error(responseData.message || 'API request failed');
+        const msg = responseData.message || 'API request failed';
+        if (msg.includes('만료된 토큰') || msg.includes('유효하지 않은 토큰') || msg.includes('인증 토큰')) {
+          if (window.Auth && typeof Auth.handleExpiredToken === 'function') {
+            Auth.handleExpiredToken();
+          }
+        }
+        throw new Error(msg);
       }
       
       // Clear cache on write operations so next read fetches fresh data
@@ -252,6 +258,12 @@ const API = {
       return responseData;
     } catch (error) {
       Utils.hideLoading();
+      if (error.message && (error.message.includes('만료된 토큰') || error.message.includes('유효하지 않은 토큰'))) {
+        if (window.Auth && typeof Auth.handleExpiredToken === 'function') {
+          Auth.handleExpiredToken();
+          throw error;
+        }
+      }
       Utils.showToast(error.message, 'error');
       console.error('API Error:', error);
       throw error;

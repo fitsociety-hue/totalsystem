@@ -59,14 +59,15 @@ function handleRequest(e, method) {
     const bypassActions = [
       'login', 'register', 'verifyQRToken', 'selfCheckIn', 'setupAutoSyncTrigger', 
       'getAllSnapshotData', 'getAttendanceSheetAll', 'getDailyWorkLogs', 'getSupervision', 
-      'getStaffs', 'getStaffsAll', 'getTeams', 'getPrograms', 'getMembers', 'getStats', 'getAllStats'
+      'getStaffs', 'getStaffsAll', 'getTeams', 'getPrograms', 'getMembers', 'getStats', 'getAllStats', 'getPersonalStats'
     ];
     if (!bypassActions.includes(action)) {
       if (!payload.token) throw new Error('인증 토큰이 필요합니다.');
       user = verifyToken(payload.token);
-      if (!user) throw new Error('유효하지 않거나 만료된 토큰입니다.');
+      if (!user) throw new Error('유효하지 않거나 만료된 토큰입니다. 다시 로그인해 주세요.');
     } else if (payload.token) {
-      user = verifyToken(payload.token);
+      const verified = verifyToken(payload.token);
+      if (verified) user = verified;
     }
 
     // 캐시 강제 무효화 요청 처리 (근본적인 동기화 문제 해결)
@@ -324,7 +325,7 @@ function login(team, name, password) {
 }
 
 function createToken(payload) {
-  payload.exp = new Date().getTime() + (8 * 60 * 60 * 1000); // 8시간 만료
+  payload.exp = new Date().getTime() + (30 * 24 * 60 * 60 * 1000); // 30일 세션 만료 보장 (기존 8시간 ➔ 30일로 연장)
   const secret = PropertiesService.getScriptProperties().getProperty('JWT_SECRET') || 'DEFAULT_SECRET_KEY';
   const header = Utilities.base64EncodeWebSafe(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   

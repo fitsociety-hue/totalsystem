@@ -34,6 +34,17 @@ const Auth = {
     window.location.href = 'index.html';
   },
 
+  handleExpiredToken: function() {
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user_info');
+    if (window.Utils && typeof Utils.showToast === 'function') {
+      Utils.showToast('로그인 세션이 만료되었습니다. 안전을 위해 다시 로그인해 주세요.', 'error');
+    }
+    setTimeout(() => {
+      window.location.href = 'index.html';
+    }, 1500);
+  },
+
   getUser: function() {
     const userStr = localStorage.getItem('user_info');
     if (!userStr) return null;
@@ -59,6 +70,21 @@ const Auth = {
       this.logout();
       return false;
     }
+
+    // JWT 만료시간 클라이언트측 사전 검증
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        let payloadStr = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+        if (payloadStr.startsWith('%7B')) payloadStr = decodeURIComponent(payloadStr);
+        const payload = JSON.parse(payloadStr);
+        if (payload.exp && Date.now() > payload.exp) {
+          this.handleExpiredToken();
+          return false;
+        }
+      }
+    } catch (e) {}
+
     return true;
   },
 

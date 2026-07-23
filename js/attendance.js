@@ -623,8 +623,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         await API.fetchGAS('checkAttendance', { programId: currentProgram.사업ID, date: dateStr, attendanceList, sessionRound });
       }
-      Utils.showToast('출석이 저장되었습니다.', 'success');
-    } catch (e) {}
+      if (window.APICache && typeof APICache.clearAll === 'function') {
+        APICache.clearAll();
+      }
+      Utils.showToast('출석 및 실적이 성공적으로 저장되었습니다.', 'success');
+    } catch (e) {
+      console.error('Save attendance error:', e);
+      Utils.showToast('저장 중 오류가 발생했습니다: ' + (e.message || e), 'error');
+    }
   });
 
   // QR Code Generation
