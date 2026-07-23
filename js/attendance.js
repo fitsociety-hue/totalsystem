@@ -708,6 +708,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const manualTypeSelect = document.getElementById('manual-type-select');
     const selectedType = manualTypeSelect ? manualTypeSelect.value : '출석부';
 
+    // ⚡ [최속 0.1초 낙관적 UI 저장] 사용자 체감속도 극대화
+    Utils.showToast('⚡ 출석 저장이 완료되었습니다.', 'success');
+    if (window.APICache && typeof APICache.clearAll === 'function') {
+      APICache.clearAll();
+    }
+
     try {
       if (selectedType === '건수') {
         const count = document.getElementById('input-count').value;
@@ -726,7 +732,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         await API.fetchGAS('submitUnspecifiedAttendance', { programId: currentProgram.사업ID, date: dateStr, data: data });
       } else {
-        const sessionRound = document.getElementById('session-round-select') ? document.getElementById('session-round-select').value : '1회차(정규)';
+        const sessionRound = document.getElementById('session-round-select') ? document.getElementById('session-round-select').value : '정규수업';
         const attendanceList = currentMembers.map(m => {
           let finalRemark = m.remark || '';
           if (!m.attended && m.absenceReason) {
@@ -741,13 +747,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         await API.fetchGAS('checkAttendance', { programId: currentProgram.사업ID, date: dateStr, attendanceList, sessionRound });
       }
-      if (window.APICache && typeof APICache.clearAll === 'function') {
-        APICache.clearAll();
-      }
-      Utils.showToast('출석 및 실적이 성공적으로 저장되었습니다.', 'success');
-      if (currentProgram) {
-        await renderAttendanceSection(currentProgram);
-      }
+    } catch (err) {
+      console.error('Attendance save error:', err);
+      Utils.showToast('저장 중 네트워크 동기화 실패. 다시 시도해 주세요.', 'error');
+    }
+  });
     } catch (e) {
       console.error('Save attendance error:', e);
       Utils.showToast('저장 중 오류가 발생했습니다: ' + (e.message || e), 'error');

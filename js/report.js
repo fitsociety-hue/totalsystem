@@ -434,8 +434,12 @@ async function saveDailyWorkLog() {
   const perfPromises = [];
   
   try {
-    Utils.showLoading();
-    
+    // ⚡ [0.1초 최속 낙관적 UI 응답]
+    Utils.showToast('⚡ 업무일지가 성공적으로 작성/저장되었습니다.', 'success');
+    if (window.APICache && typeof APICache.clearAll === 'function') {
+      APICache.clearAll();
+    }
+
     for (const card of cards) {
       const pid = card.getAttribute('data-id');
       const pname = card.getAttribute('data-name');
@@ -492,10 +496,10 @@ async function saveDailyWorkLog() {
     }
 
     Utils.hideLoading();
-    Utils.showToast('일일 업무 및 실적이 안전하게 저장되었습니다.', 'success');
   } catch(e) {
     Utils.hideLoading();
-    Utils.showToast('저장 중 오류가 발생했습니다: ' + e.message, 'error');
+    console.error('saveDailyWorkLog error:', e);
+    Utils.showToast('일지 저장 중 네트워크 동기화 오류가 발생했습니다.', 'error');
   }
 }
 
