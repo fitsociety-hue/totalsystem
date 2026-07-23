@@ -10,13 +10,15 @@ const ProgramsLogic = {
     try {
       const res = await API.fetchGAS('getPrograms', { teamName, forceRefresh });
       let progs = res.data || [];
-      const user = Auth.getUser();
-      if (user && user.role !== '관리자' && user.role !== '팀장') {
-        const staffName = user.name;
-        progs = progs.filter(p => String(p.담당자 || '').includes(staffName));
+      // 활성화된 사업 필터링 및 이름 보장
+      progs = progs.filter(p => String(p.상태 || '').trim() !== '비활성' && p.사업명 && String(p.사업명).trim() !== '');
+      if (teamName && teamName !== '전체' && teamName !== '관리자') {
+        const teamProgs = progs.filter(p => p.팀명 === teamName);
+        if (teamProgs.length > 0) return teamProgs;
       }
       return progs;
     } catch (e) {
+      console.error('loadTeamPrograms error:', e);
       return [];
     }
   },
@@ -40,15 +42,15 @@ const ProgramsLogic = {
     container.innerHTML = `
       <div class="grid-cards" style="margin-bottom: 20px;">
         <div>
-          <label class="form-label">세부분류</label>
-          <select id="sel-cat2" class="form-select">
+          <label class="form-label" style="font-weight: bold;">세부분류</label>
+          <select id="sel-cat2" class="form-select" style="height: 42px; font-size: 14px;">
             <option value="">선택</option>
             ${Object.keys(categories).map(c2 => `<option value="${c2}">${c2}</option>`).join('')}
           </select>
         </div>
         <div>
-          <label class="form-label">사업명</label>
-          <select id="sel-prog" class="form-select" disabled>
+          <label class="form-label" style="font-weight: bold;">사업명</label>
+          <select id="sel-prog" class="form-select" disabled style="height: 42px; font-size: 14px;">
             <option value="">선택</option>
           </select>
         </div>

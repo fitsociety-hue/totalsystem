@@ -9,12 +9,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const user = Auth.getUser();
   // Fetch programs for dropdown
-  let teamName = user.role === '관리자' ? '' : user.team; 
+  let teamName = (user.role === '관리자' || !user.team) ? '' : user.team; 
   let programs = await ProgramsLogic.loadTeamPrograms(teamName);
-  
-  // 담당자 기반 필터링 (관리자가 아닐 경우)
-  if (user.role !== '관리자') {
-    programs = programs.filter(p => p.담당자 && p.담당자.includes(user.name));
+
+  // 팀별 사업이 없거나 미정인 경우 전체 사업 목록으로 자동 폴백하여 드롭다운 미표출 방지
+  if (!programs || programs.length === 0) {
+    programs = await ProgramsLogic.loadTeamPrograms('');
   }
   
   let currentProgram = null;
