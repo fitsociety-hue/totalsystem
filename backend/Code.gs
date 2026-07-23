@@ -224,6 +224,7 @@ function getSheetDataAsJSON(sheetName, bypassCache = false) {
       else if (expectedH === '사업명') foundIdx = rawHeaders.findIndex(rh => rh.includes('사업명') || rh.includes('사업'));
       else if (expectedH === '메모') foundIdx = rawHeaders.findIndex(rh => rh.includes('메모') || rh.includes('비고'));
       else if (expectedH === '요일') foundIdx = rawHeaders.findIndex(rh => rh.includes('요일') || rh.includes('이용요일') || rh.includes('수업요일'));
+      else if (expectedH === '그룹구분') foundIdx = rawHeaders.findIndex(rh => rh.includes('그룹구분') || rh.includes('그룹/반') || rh.includes('반구분') || rh.includes('그룹반'));
     }
     
     colMap[expectedH] = foundIdx;
