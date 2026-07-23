@@ -235,6 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         });
 
+        populateGroupFilterOptions(currentMembers);
         renderMembersGrid();
       } catch (e) {
         console.error('Error fetching members or attendance:', e);
@@ -242,6 +243,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentMembers = [];
         renderMembersGrid();
       }
+    }
+  }
+
+  function populateGroupFilterOptions(members) {
+    const groupSelect = document.getElementById('group-filter-select');
+    if (!groupSelect) return;
+    
+    const existingVal = groupSelect.value;
+    const groupSet = new Set();
+    members.forEach(m => {
+      const g = (m.그룹구분 || m['그룹/반 구분'] || m['그룹구분'] || '').trim();
+      if (g) groupSet.add(g);
+    });
+
+    let optionsHtml = '<option value="all">전체 그룹/반 보기</option>';
+    Array.from(groupSet).sort().forEach(g => {
+      optionsHtml += `<option value="${g}">${g}</option>`;
+    });
+    groupSelect.innerHTML = optionsHtml;
+    if (existingVal && Array.from(groupSet).includes(existingVal)) {
+      groupSelect.value = existingVal;
     }
   }
 
@@ -285,6 +307,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     let filtered = currentMembers.filter(m => m && m.이름 && String(m.이름).trim() !== '');
     
+    // 0. 그룹/반 필터 적용
+    const groupFilterEl = document.getElementById('group-filter-select');
+    const groupFilterVal = groupFilterEl ? groupFilterEl.value : 'all';
+    if (groupFilterVal && groupFilterVal !== 'all') {
+      filtered = filtered.filter(m => {
+        const gStr = String(m.그룹구분 || m['그룹/반 구분'] || '').trim();
+        return gStr === groupFilterVal;
+      });
+    }
+
     // 1. 요일별 필터 적용 (대한민국 시간 기준 선택 일자의 요일에 맞는 이용인 명단 자동 분류)
     const dateVal = document.getElementById('attendance-date') ? document.getElementById('attendance-date').value : '';
     let currentDayName = '';
@@ -325,7 +357,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let attCount = filtered.filter(m => m.attended).length;
     let absCount = filtered.filter(m => !m.attended).length;
     const dayTagStr = targetDay ? ` (${targetDay}요일 이용인)` : '';
-    document.getElementById('attendance-counter').textContent = `출석 ${attCount}명 / 결석 ${absCount}명 (전체 ${filtered.length}명${dayTagStr})`;
+    const groupTagStr = (groupFilterVal && groupFilterVal !== 'all') ? ` [${groupFilterVal}]` : '';
+    document.getElementById('attendance-counter').textContent = `출석 ${attCount}명 / 결석 ${absCount}명 (전체 ${filtered.length}명${dayTagStr}${groupTagStr})`;
 
     if (filtered.length === 0) {
       grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 20px;">회원이 없습니다.</div>';
@@ -347,9 +380,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         badgeHtml = `<span class="badge" style="background:var(--color-error); color:white; font-size:11px; padding:2px 6px; border-radius:10px; margin-left:6px;">X 결석 (${m.absenceReason})</span>`;
       }
 
+      let groupBadgeHtml = '';
+      const groupDivStr = m.그룹구분 || m['그룹/반 구분'] || '';
+      if (groupDivStr) {
+        groupBadgeHtml = `<span class="badge" style="font-size:10px; padding:2px 5px; margin-left:4px; background:#E2E8F0; color:#334155; border-radius:8px;">🏷️ ${groupDivStr}</span>`;
+      }
+
       card.innerHTML = `
         <div class="name-display flex justify-between items-center" style="width:100%;">
-          <span><strong>${m.이름}</strong> ${badgeHtml}</span>
+          <span><strong>${m.이름}</strong> ${groupBadgeHtml} ${badgeHtml}</span>
           ${m.attended ? `<button class="btn-ghost btn-inc-count" data-name="${m.이름}" style="padding:2px 6px; font-size:11px; border:1px solid var(--color-primary); color:var(--color-primary);" title="당일 2회 이상 출석 시 1회 추가">+1회 (보강)</button>` : ''}
         </div>
 
@@ -549,10 +588,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     sessionRoundSelect.dataset.hasListener = 'true';
     sessionRoundSelect.addEventListener('change', async (e) => {
       const selectedRound = e.target.value;
+      
+      // 회차/시간대 선택 시 해당 그룹/반 스마트 매칭
+      const groupSelect = document.getElementById('group-filter-select');
+      if (groupSelect && groupSelect.options.length > 1) {
+        let matchedVal = 'all';
+        const numMatch = selectedRound.match(/\d+/);
+        const searchKeyword = numMatch ? numMatch[0] : '';
+        const roundNumMatch = selectedRound.match(/(\d+)회차/);
+        const roundNumStr = roundNumMatch ? `그룹${roundNumMatch[1]}` : '';
+
+        for (let i = 1; i < groupSelect.options.length; i++) {
+          const optVal = groupSelect.options[i].value;
+          if ((searchKeyword && searchKeyword.length >= 2 && optVal.includes(searchKeyword)) || (roundNumStr && optVal.includes(roundNumStr))) {
+            matchedVal = optVal;
+            break;
+          }
+        }
+        groupSelect.value = matchedVal;
+      }
+
       if (currentProgram) {
         await renderAttendanceSection(currentProgram);
       }
       Utils.showToast(`[${selectedRound}] 출석 화면으로 전환되었습니다.`, 'info');
+    });
+  }
+
+  const groupFilterSelect = document.getElementById('group-filter-select');
+  if (groupFilterSelect && !groupFilterSelect.dataset.hasListener) {
+    groupFilterSelect.dataset.hasListener = 'true';
+    groupFilterSelect.addEventListener('change', () => {
+      renderMembersGrid();
     });
   }
 

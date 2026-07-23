@@ -55,6 +55,7 @@
               <option value="장애">장애</option>
               <option value="비장애">비장애</option>
             </select>
+            <input type="text" id="filter-group-div" class="form-input" placeholder="그룹/반 검색" style="max-width: 140px;">
             <button id="btn-search" class="btn-secondary">검색</button>
             <a href="https://docs.google.com/spreadsheets/" target="_blank" class="btn-ghost" style="margin-left:auto; font-size:14px; text-decoration:none;">구글 시트 열기</a>
           </div>
@@ -68,6 +69,7 @@
                   <th>이용요일</th>
                   <th>장애구분</th>
                   <th>구분</th>
+                  <th>그룹/반 구분</th>
                   <th>상태</th>
                   <th>팀명</th>
                   <th>사업명</th>
@@ -76,7 +78,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr><td colspan="10" class="text-center">데이터를 불러오는 중입니다...</td></tr>
+                <tr><td colspan="11" class="text-center">데이터를 불러오는 중입니다...</td></tr>
               </tbody>
             </table>
           </div>
@@ -132,11 +134,15 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">구분</label>
+          <label class="form-label">구분 (개별/그룹)</label>
           <select id="mem-class" class="form-select" required>
             <option value="개별">개별</option>
             <option value="그룹">그룹</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">그룹/반 구분 <span style="font-size:12px; color:var(--color-primary);">★ 회차/시간대 출석 스마트 연동</span></label>
+          <input type="text" id="mem-group-div" class="form-input" placeholder="예: 그룹1(10시), 그룹2(14시), 오전반 등">
         </div>
         <div class="form-group">
           <label class="form-label">상태</label>

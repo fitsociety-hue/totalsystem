@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             요일: getVal(['이용요일', '요일', '수업요일', '출석요일']) || '전체',
             장애비장애구분: getVal(['장애비장애구분', '장애구분', '장애']) || '비장애',
             구분: getVal(['구분', '회원구분']) || '개별',
+            그룹구분: getVal(['그룹구분', '그룹/반구분', '그룹/반 구분', '그룹/반', '반구분']),
             상태: getVal(['상태']) || '활성',
             팀명: getVal(['팀명', '소속팀', '팀']),
             사업명: getVal(['사업명', '사업']),
@@ -162,12 +163,15 @@ function applyFilters() {
   const nameQ = document.getElementById('filter-name').value.toLowerCase();
   const statusQ = document.getElementById('filter-status').value;
   const typeQ = document.getElementById('filter-type').value;
+  const groupDivEl = document.getElementById('filter-group-div');
+  const groupDivQ = groupDivEl ? groupDivEl.value.toLowerCase().trim() : '';
 
   filteredMembers = allMembers.filter(m => {
     const matchName = m.이름.toLowerCase().includes(nameQ);
     const matchStatus = statusQ ? m.상태 === statusQ : true;
     const matchType = typeQ ? m.장애비장애구분 === typeQ : true;
-    return matchName && matchStatus && matchType;
+    const matchGroupDiv = groupDivQ ? String(m.그룹구분 || m['그룹/반 구분'] || '').toLowerCase().includes(groupDivQ) : true;
+    return matchName && matchStatus && matchType && matchGroupDiv;
   });
 
   currentPage = 1;
@@ -180,7 +184,7 @@ function renderTable() {
 
   const total = filteredMembers.length;
   if (total === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center">검색 결과가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="text-center">검색 결과가 없습니다.</td></tr>';
     document.getElementById('page-info').textContent = '';
     return;
   }
@@ -193,6 +197,7 @@ function renderTable() {
   pageData.forEach(m => {
     const nameStr = m.이름 || m.성명 || m.회원명 || m['\uFEFF이름'] || '';
     const dateStr = m.시작일 || m.등록일 || m.가입일 || '';
+    const groupDivStr = m.그룹구분 || m['그룹/반 구분'] || '';
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td data-label="이름"><strong>${nameStr}</strong></td>
@@ -200,6 +205,7 @@ function renderTable() {
       <td data-label="이용요일"><span class="badge badge-primary" style="font-size:11px;">${m.요일 || '전체'}</span></td>
       <td data-label="장애여부"><span class="badge ${m.장애비장애구분 === '장애' ? 'badge-warning' : 'badge-neutral'}">${m.장애비장애구분 || '비장애'}</span></td>
       <td data-label="구분"><span class="badge ${m.구분 === '그룹' ? 'badge-primary' : 'badge-neutral'}">${m.구분 || '개별'}</span></td>
+      <td data-label="그룹/반 구분">${groupDivStr ? `<span class="badge badge-primary" style="font-size:11px;">${groupDivStr}</span>` : '<span style="color:#aaa;">-</span>'}</td>
       <td data-label="상태"><span class="badge ${m.상태 === '활성' ? 'badge-success' : (m.상태 === '보류' ? 'badge-warning' : 'badge-error')}">${m.상태 || '활성'}</span></td>
       <td data-label="팀명">${m.팀명 || ''}</td>
       <td data-label="사업명">${m.사업명 || ''}</td>
@@ -223,6 +229,7 @@ window.openMemberModal = function() {
   document.getElementById('original-name').value = '';
   document.getElementById('mem-start').value = Utils.formatDate(new Date());
   document.getElementById('mem-class').value = '개별';
+  if (document.getElementById('mem-group-div')) document.getElementById('mem-group-div').value = '';
 
   document.querySelectorAll('input[name="mem-days"]').forEach(cb => {
     cb.checked = (cb.value === '전체');
@@ -251,6 +258,7 @@ window.editMember = function(name) {
   document.getElementById('mem-status').value = m.상태;
   document.getElementById('mem-type').value = m.장애비장애구분;
   document.getElementById('mem-class').value = m.구분 || '개별';
+  if (document.getElementById('mem-group-div')) document.getElementById('mem-group-div').value = m.그룹구분 || m['그룹/반 구분'] || '';
   document.getElementById('mem-team').value = m.팀명 || '';
   document.getElementById('mem-programs').value = m.사업명 || '';
   document.getElementById('mem-memo').value = m.메모 || '';
@@ -267,6 +275,7 @@ async function saveMember() {
   const isEdit = document.getElementById('original-name').value;
   const dayCheckboxes = document.querySelectorAll('input[name="mem-days"]:checked');
   const selectedDays = Array.from(dayCheckboxes).map(cb => cb.value).join(',');
+  const groupDivVal = document.getElementById('mem-group-div') ? document.getElementById('mem-group-div').value.trim() : '';
 
   const data = {
     이름: document.getElementById('mem-name').value,
@@ -274,6 +283,7 @@ async function saveMember() {
     요일: selectedDays || '전체',
     장애비장애구분: document.getElementById('mem-type').value,
     구분: document.getElementById('mem-class').value,
+    그룹구분: groupDivVal,
     상태: document.getElementById('mem-status').value,
     팀명: document.getElementById('mem-team').value,
     사업명: document.getElementById('mem-programs').value,
@@ -312,7 +322,7 @@ window.downloadMembersCSV = function() {
     return;
   }
 
-  const headers = ['이름', '시작일', '이용요일', '장애비장애구분', '구분', '상태', '팀명', '사업명', '메모'];
+  const headers = ['이름', '시작일', '이용요일', '장애비장애구분', '구분', '그룹/반 구분', '상태', '팀명', '사업명', '메모'];
   const escapeCSV = (val) => {
     const str = String(val == null ? '' : val);
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
@@ -329,6 +339,7 @@ window.downloadMembersCSV = function() {
       m.요일 || '전체',
       m.장애비장애구분 || '비장애',
       m.구분 || '개별',
+      m.그룹구분 || m['그룹/반 구분'] || '',
       m.상태 || '활성',
       m.팀명 || '',
       m.사업명 || '',
