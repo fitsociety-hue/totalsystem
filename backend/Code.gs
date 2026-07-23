@@ -96,7 +96,7 @@ function handleRequest(e, method) {
       case 'deleteProgramRecord': result = deleteProgramRecord(payload.programId, payload.pin, user); break;
       
       // 출석 관리
-      case 'checkAttendance': result = checkAttendance(payload.programId, payload.date, payload.attendanceList, user); break;
+      case 'checkAttendance': result = checkAttendance(payload.programId, payload.date, payload.attendanceList, user, payload.sessionRound); break;
       case 'getAttendanceSheet': result = getAttendanceSheet(payload.programId, payload.date); break;
       case 'submitCountOnly': result = submitCountOnly(payload.programId, payload.date, payload.count, user); break;
       case 'submitUnspecifiedAttendance': result = submitUnspecifiedAttendance(payload.programId, payload.date, payload.data, user); break;
@@ -568,13 +568,14 @@ function getAttendanceSheet(programId, date) {
   return attData.filter(a => a.사업ID === programId && formatDateStr(a.날짜) === date);
 }
 
-function checkAttendance(programId, date, attendanceList, user) {
+function checkAttendance(programId, date, attendanceList, user, sessionRound) {
   const sheet = getSheet('출석_원장');
   const programs = getSheetDataAsJSON('사업_마스터');
   const prog = programs.find(p => p.사업ID === programId);
   if (!prog) throw new Error('사업을 찾을 수 없습니다.');
   
-  deleteExistingAttendance(programId, date);
+  const roundTag = sessionRound ? sessionRound.trim() : '1회차(정규)';
+  deleteExistingAttendance(programId, date, roundTag);
 
   const inputterName = (user && user.name) ? user.name : '시스템';
 
@@ -584,12 +585,18 @@ function checkAttendance(programId, date, attendanceList, user) {
     if (att.출석여부 === 'O' || (att.비고 && att.비고.trim() !== '')) {
       const attId = 'ATT_' + new Date().getTime() + Math.floor(Math.random() * 1000);
       const count = att.출석여부 === 'O' ? (Number(att.건수) || 1) : 0;
-      const remark = att.비고 || '';
+      let rawRemark = att.비고 || '';
+      
+      // 회차 태그 포함하여 비고 생성
+      let remark = rawRemark;
+      if (!remark.includes('[회차:')) {
+        remark = `[회차:${roundTag}] ` + remark;
+      }
       
       newRows.push([
         attId, date, programId, prog.사업명, prog.팀명, att.이름, 
         att.출석여부, count, '직원입력', inputterName, new Date(),
-        0, 0, 0, 0, 0, remark
+        0, 0, 0, 0, 0, remark.trim()
       ]);
     }
   });
@@ -671,14 +678,34 @@ function submitUnspecifiedAttendance(programId, date, data, user) {
   return true;
 }
 
-function deleteExistingAttendance(programId, date) {
+function deleteExistingAttendance(programId, date, sessionRound) {
   const sheet = getSheet('출석_원장');
   const vals = sheet.getDataRange().getValues();
   if (vals.length <= 1) return;
   
   let deleted = false;
+  const targetRoundStr = sessionRound ? String(sessionRound).trim() : '';
+
   for (let i = vals.length - 1; i >= 1; i--) {
-    if (vals[i][2] === programId && formatDateStr(vals[i][1]) === date) {
+    const rowProgId = vals[i][2];
+    const rowDate = formatDateStr(vals[i][1]);
+    const rowRemark = String(vals[i][16] || '');
+
+    let isMatch = (rowProgId === programId && rowDate === date);
+    if (isMatch && targetRoundStr !== '') {
+      const hasTargetTag = rowRemark.includes(`[회차:${targetRoundStr}]`) || rowRemark.includes(`[회차: ${targetRoundStr}]`);
+      const hasAnyTag = rowRemark.includes('[회차:');
+      
+      if (hasTargetTag) {
+        isMatch = true;
+      } else if (!hasAnyTag && (targetRoundStr === '1회차(정규)' || targetRoundStr === '1회차')) {
+        isMatch = true;
+      } else {
+        isMatch = false;
+      }
+    }
+
+    if (isMatch) {
       sheet.deleteRow(i + 1);
       deleted = true;
     }
@@ -950,13 +977,17 @@ function calculateStatsCore(progs, targetYear, targetMonths, attData, memberMap)
           if (!pPriorNames.has(a.이름)) pNames.add(a.이름);
         }
         const dateStr = formatDateStr(a.날짜);
-        if (!pMemberDaily[dateStr]) pMemberDaily[dateStr] = [];
-        pMemberDaily[dateStr].push(a);
+        const matchRound = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
+        const roundStr = matchRound ? matchRound[1].trim() : '1회차(정규)';
+        const sessionKey = dateStr + '___' + roundStr;
+        
+        if (!pMemberDaily[sessionKey]) pMemberDaily[sessionKey] = [];
+        pMemberDaily[sessionKey].push(a);
       }
     });
     
-    Object.keys(pMemberDaily).forEach(dateStr => {
-      const records = pMemberDaily[dateStr];
+    Object.keys(pMemberDaily).forEach(sessionKey => {
+      const records = pMemberDaily[sessionKey];
       let hasGroup = false;
       let indvCount = 0;
       records.forEach(a => {

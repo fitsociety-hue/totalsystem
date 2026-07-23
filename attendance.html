@@ -125,11 +125,22 @@
           
           <!-- Members list -->
           <div id="members-section" class="hidden">
+            <div id="session-summary-bar" class="mb-2 p-2 rounded hidden" style="background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border: 1px solid var(--color-primary-soft);">
+              <div class="flex items-center justify-between" style="font-size: 13px;">
+                <span style="font-weight: bold; color: var(--color-primary-dark);">📊 당일 회차별 출석 완료 현황:</span>
+                <span id="session-summary-content" style="font-weight: 500;">-</span>
+              </div>
+            </div>
+
             <div class="flex justify-between items-center mb-2 flex-wrap gap-2" style="background: rgba(59, 130, 246, 0.05); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.15);">
               <div class="flex items-center gap-2 flex-wrap">
                 <div class="flex items-center gap-1">
-                  <label class="form-label mb-0" style="font-weight:bold; font-size:13px; color:var(--color-primary-dark);">📌 수업 회차/구분:</label>
-                  <select id="session-round-select" class="form-select" style="max-width: 150px; padding: 4px 8px; font-size: 13px; font-weight: 500;">
+                  <label class="form-label mb-0" style="font-weight:bold; font-size:13px; color:var(--color-primary-dark);">📌 수업 회차/시간대:</label>
+                  <select id="session-round-select" class="form-select" style="max-width: 170px; padding: 4px 8px; font-size: 13px; font-weight: bold; border-color:var(--color-primary);">
+                    <option value="1회차(10시)">1회차 (오전 10시)</option>
+                    <option value="2회차(14시)">2회차 (오후 14시)</option>
+                    <option value="3회차(16시)">3회차 (오후 16시)</option>
+                    <option value="4회차(야간)">4회차 (기타/야간)</option>
                     <option value="1회차(정규)">1회차 (정규수업)</option>
                     <option value="2회차(보강)">2회차 (보강수업)</option>
                     <option value="3회차(기타)">3회차 (기타수업)</option>

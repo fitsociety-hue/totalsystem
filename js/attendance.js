@@ -185,9 +185,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         const attList = existingAtt || [];
-        
+        updateSessionSummary(attList);
+
+        const sessionRoundSelect = document.getElementById('session-round-select');
+        const selectedRound = sessionRoundSelect ? sessionRoundSelect.value.trim() : '1회차(정규)';
+
+        function isAttMatchSession(att, targetRound) {
+          const match = String(att.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
+          const attRound = match ? match[1].trim() : '1회차(정규)';
+          return attRound === targetRound || (targetRound.startsWith('1회차') && !match);
+        }
+
+        const currentRoundAttList = attList.filter(a => isAttMatchSession(a, selectedRound));
+
         // 과거 출석 기록에 있는 회원 추가 (무효 무명 및 불특정 인원 제외)
-        attList.forEach(att => {
+        currentRoundAttList.forEach(att => {
           if (att.이름 && String(att.이름).trim() !== '' && 
               att.이름 !== '건수입력용_무명' && att.이름 !== '불특정_인원_입력' &&
               !currentMembers.find(m => m.이름 === att.이름)) {
@@ -200,21 +212,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         currentMembers.forEach(m => {
-          const att = attList.find(a => a.이름 === m.이름);
+          const att = currentRoundAttList.find(a => a.이름 === m.이름);
           if (att) {
             m.attended = (att.출석여부 === 'O');
             m.count = Number(att.건수) || (m.attended ? 1 : 0);
-            const remarkText = att.비고 || '';
+            let remarkText = att.비고 || '';
+            // [회차:...] 태그 제거 후 표시용 비고 파싱
+            remarkText = remarkText.replace(/\[회차:\s*[^\]]+\]\s*/g, '');
             if (remarkText.startsWith('결석사유:')) {
               const parts = remarkText.split(' / ');
               m.absenceReason = parts[0].replace(/^결석사유:\s*/, '').trim();
               m.remark = parts.slice(1).join(' / ');
             } else {
+              m.absenceReason = '';
               m.remark = remarkText;
             }
           } else {
-            if (m.attended === undefined) m.attended = false;
-            if (m.count === undefined) m.count = 1;
+            m.attended = false;
+            m.count = 1;
+            m.absenceReason = '';
+            m.remark = '';
           }
         });
 
@@ -226,6 +243,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderMembersGrid();
       }
     }
+  }
+
+  function updateSessionSummary(attList) {
+    const summaryBar = document.getElementById('session-summary-bar');
+    const summaryContent = document.getElementById('session-summary-content');
+    if (!summaryBar || !summaryContent) return;
+
+    if (!attList || attList.length === 0) {
+      summaryBar.classList.add('hidden');
+      return;
+    }
+
+    const roundsMap = {};
+    attList.forEach(a => {
+      if (a.출석여부 === 'O' && a.이름 !== '건수입력용_무명' && a.이름 !== '불특정_인원_입력') {
+        const match = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
+        const roundName = match ? match[1].trim() : '1회차(정규)';
+        roundsMap[roundName] = (roundsMap[roundName] || 0) + 1;
+      }
+    });
+
+    const keys = Object.keys(roundsMap);
+    if (keys.length === 0) {
+      summaryBar.classList.add('hidden');
+      return;
+    }
+
+    summaryBar.classList.remove('hidden');
+    summaryContent.innerHTML = keys.map(k => `
+      <span class="badge badge-primary" style="font-size:12px; margin-right:4px;">
+        ${k}: <strong>${roundsMap[k]}명 출석</strong>
+      </span>
+    `).join('');
   }
 
   function renderMembersGrid(filter = '') {
@@ -497,18 +547,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sessionRoundSelect = document.getElementById('session-round-select');
   if (sessionRoundSelect && !sessionRoundSelect.dataset.hasListener) {
     sessionRoundSelect.dataset.hasListener = 'true';
-    sessionRoundSelect.addEventListener('change', (e) => {
+    sessionRoundSelect.addEventListener('change', async (e) => {
       const selectedRound = e.target.value;
-      // 회차 변경 시 출석 인원 상태 새로고침 (클린 리셋)
-      currentMembers.forEach(m => {
-        m.attended = false;
-        m.count = 1;
-        m.absenceReason = '';
-        m.remark = '';
-      });
-      expandedMemberName = null;
-      renderMembersGrid();
-      Utils.showToast(`[${selectedRound}] 출석 입력 상태로 새로고침 되었습니다.`, 'info');
+      if (currentProgram) {
+        await renderAttendanceSection(currentProgram);
+      }
+      Utils.showToast(`[${selectedRound}] 출석 화면으로 전환되었습니다.`, 'info');
     });
   }
 
@@ -627,6 +671,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         APICache.clearAll();
       }
       Utils.showToast('출석 및 실적이 성공적으로 저장되었습니다.', 'success');
+      if (currentProgram) {
+        await renderAttendanceSection(currentProgram);
+      }
     } catch (e) {
       console.error('Save attendance error:', e);
       Utils.showToast('저장 중 오류가 발생했습니다: ' + (e.message || e), 'error');
