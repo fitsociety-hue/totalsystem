@@ -14,10 +14,12 @@ function triggerVercelDeploy() {
       payload: JSON.stringify({ trigger: 'GAS_Data_Update', timestamp: new Date().toISOString() }),
       muteHttpExceptions: true
     };
-    UrlFetchApp.fetch(url, options);
-    Logger.log('Vercel Deploy Hook triggered successfully');
+    if (typeof UrlFetchApp !== 'undefined' && UrlFetchApp.fetch) {
+      UrlFetchApp.fetch(url, options);
+      Logger.log('Vercel Deploy Hook triggered successfully');
+    }
   } catch (e) {
-    Logger.log('Error triggering Vercel Deploy Hook: ' + e.toString());
+    Logger.log('Notice: Vercel Deploy Hook skipped or requires authorization: ' + e.toString());
   }
 }
 
