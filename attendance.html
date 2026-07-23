@@ -31,28 +31,36 @@
       </header>
       
       <div class="content-body">
-        <h2 class="mb-3">출석체크</h2>
-        
-        <div class="glass-card mb-3">
-          <h3 class="mb-2">Step 1. 사업 선택</h3>
-          <div id="dropdowns-container"></div>
-          
-          <div class="form-group" style="max-width: 200px; margin-top: 16px;">
-            <label class="form-label">날짜 선택</label>
-            <input type="date" id="attendance-date" class="form-input" required>
-          </div>
-          
-          <div id="selected-program-info" class="mt-3 hidden flex items-center gap-1">
-            <button id="btn-show-qr" class="btn-secondary">QR코드 생성</button>
-            <button id="btn-enter-kiosk" class="btn-primary">이용인 셀프 출석</button>
+        <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+          <h2>출석체크</h2>
+          <div class="flex gap-2">
+            <button id="tab-btn-attendance" class="btn-primary active" style="font-size: 14px; font-weight: bold; padding: 8px 16px;" onclick="switchMainTab('attendance')">📋 출석부 관리</button>
+            <button id="tab-btn-absence" class="btn-secondary" style="font-size: 14px; font-weight: bold; padding: 8px 16px;" onclick="switchMainTab('absence')">⚠️ 결석사유 관리</button>
           </div>
         </div>
-
-        <div class="glass-card mb-3 hidden" id="attendance-section">
-          <div class="flex justify-between items-center mb-2">
-            <h3>Step 2. 출석 입력</h3>
-            <div id="attendance-counter"></div>
+        
+        <!-- 탭 1: 출석부 관리 -->
+        <div id="main-tab-attendance">
+          <div class="glass-card mb-3">
+            <h3 class="mb-2">Step 1. 사업 선택</h3>
+            <div id="dropdowns-container"></div>
+            
+            <div class="form-group" style="max-width: 200px; margin-top: 16px;">
+              <label class="form-label">날짜 선택</label>
+              <input type="date" id="attendance-date" class="form-input" required>
+            </div>
+            
+            <div id="selected-program-info" class="mt-3 hidden flex items-center gap-1">
+              <button id="btn-show-qr" class="btn-secondary">QR코드 생성</button>
+              <button id="btn-enter-kiosk" class="btn-primary">이용인 셀프 출석</button>
+            </div>
           </div>
+
+          <div class="glass-card mb-3 hidden" id="attendance-section">
+            <div class="flex justify-between items-center mb-2">
+              <h3>Step 2. 출석 입력</h3>
+              <div id="attendance-counter"></div>
+            </div>
           
           <!-- Performance Type Selection -->
           <div id="manual-type-selection" class="mb-3">
@@ -189,7 +197,85 @@
             <button id="btn-save" class="btn-primary">저장하기</button>
           </div>
         </div>
-      </div>
+
+        <!-- Step 3. 기간별 출석자 명부 관리 -->
+        <div class="glass-card mb-3 hidden" id="attendance-log-section">
+          <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+            <h3 style="margin: 0;">Step 3. 출석자 명부 관리 및 엑셀 추출</h3>
+            <div class="flex items-center gap-2 flex-wrap">
+              <select id="att-log-unit" class="form-select" style="max-width: 120px; font-weight: bold;">
+                <option value="day">일 단위</option>
+                <option value="week">주 단위</option>
+                <option value="month" selected>월 단위</option>
+              </select>
+              <input type="date" id="att-log-date" class="form-input" style="max-width: 150px;">
+              <button class="btn-secondary" id="btn-load-att-logs" style="font-weight: bold;">📊 명부 조회</button>
+              <button class="btn-primary" id="btn-export-att-logs" style="font-weight: bold; background: #10B981; border-color: #10B981;">📥 엑셀 다운로드</button>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="table-glass" id="att-log-table">
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>회차/시간대</th>
+                  <th>사업명</th>
+                  <th>이름</th>
+                  <th>구분</th>
+                  <th>장애여부</th>
+                  <th>입력자</th>
+                  <th>입력시각</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="8" class="text-center">조회 버튼을 눌러 출석자 명부를 확인하세요.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /main-tab-attendance -->
+
+      <!-- 탭 2: 결석사유 관리 -->
+      <div id="main-tab-absence" class="hidden">
+        <div class="glass-card mb-3">
+          <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+            <div>
+              <h3 style="color: var(--color-error); margin-bottom: 4px;">⚠️ 기간별 결석 사유 현황 및 관리</h3>
+              <p class="text-sub" style="font-size: 13px; margin: 0;">일/주/월 단위로 결석 사유를 통합 조회하고 엑셀로 내보낼 수 있습니다.</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <select id="absence-tab-unit" class="form-select" style="max-width: 120px; font-weight: bold;">
+                <option value="day">일 단위</option>
+                <option value="week">주 단위</option>
+                <option value="month" selected>월 단위</option>
+              </select>
+              <input type="date" id="absence-tab-date" class="form-input" style="max-width: 150px;">
+              <button class="btn-secondary" id="btn-load-tab-absences" style="font-weight: bold;">📊 현황 조회</button>
+              <button class="btn-primary" id="btn-export-tab-absences" style="font-weight: bold; background: #EF4444; border-color: #EF4444;">📥 엑셀 다운로드</button>
+            </div>
+          </div>
+
+          <div class="table-container mt-2">
+            <table class="table-glass" id="absence-tab-table">
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>수업회차/시간대</th>
+                  <th>사업명</th>
+                  <th>이름</th>
+                  <th>장애구분</th>
+                  <th>결석사유</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="6" class="text-center">조회 버튼을 눌러 결석 사유 현황을 확인하세요.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /main-tab-absence -->
+
     </main>
   </div>
 
@@ -197,10 +283,10 @@
   <div class="modal-overlay" id="absence-modal">
     <div class="glass-card modal-glass" style="max-width: 550px; width:90%;">
       <div class="modal-header flex justify-between items-center mb-2">
-        <h3 style="color:var(--color-error); margin:0;">⚠️ 결석 아동 및 결석 사유 현황</h3>
+        <h3 style="color:var(--color-error); margin:0;">⚠️ 결석 사유 현황</h3>
         <button class="btn-ghost" onclick="document.getElementById('absence-modal').classList.remove('active')">X</button>
       </div>
-      <p class="text-sub mb-3" style="font-size: 13px;">선택 일자의 결석 아동 및 입력된 사유 목록입니다.</p>
+      <p class="text-sub mb-3" style="font-size: 13px;">선택 일자의 결석 인원 및 입력된 사유 목록입니다.</p>
       <div id="absence-list-container" style="max-height: 350px; overflow-y: auto;">
         <!-- Absence list injected here -->
       </div>

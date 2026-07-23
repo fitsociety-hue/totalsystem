@@ -25,14 +25,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentProgram = selected;
     const infoDiv = document.getElementById('selected-program-info');
     const attSection = document.getElementById('attendance-section');
+    const attLogSection = document.getElementById('attendance-log-section');
     
     if (selected) {
       infoDiv.classList.remove('hidden');
       attSection.classList.remove('hidden');
+      if (attLogSection) attLogSection.classList.remove('hidden');
       await renderAttendanceSection(selected);
     } else {
       infoDiv.classList.add('hidden');
       attSection.classList.add('hidden');
+      if (attLogSection) attLogSection.classList.add('hidden');
     }
   });
 
@@ -855,4 +858,242 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('btn-kiosk-save').textContent = `${memberName}님 출석 저장하기`;
     }
   });
+
+  // ==============================================================================
+  // 탭 전환 및 기간별 출석자 명부 / 결석 사유 통합 관리 기능
+  // ==============================================================================
+  const todayStr = Utils.formatDate(new Date());
+  if (document.getElementById('att-log-date')) document.getElementById('att-log-date').value = todayStr;
+  if (document.getElementById('absence-tab-date')) document.getElementById('absence-tab-date').value = todayStr;
+
+  window.switchMainTab = function(tabName) {
+    const tabAtt = document.getElementById('main-tab-attendance');
+    const tabAbs = document.getElementById('main-tab-absence');
+    const btnAtt = document.getElementById('tab-btn-attendance');
+    const btnAbs = document.getElementById('tab-btn-absence');
+
+    if (tabName === 'absence') {
+      if (tabAtt) tabAtt.classList.add('hidden');
+      if (tabAbs) tabAbs.classList.remove('hidden');
+      if (btnAtt) { btnAtt.className = 'btn-secondary'; }
+      if (btnAbs) { btnAbs.className = 'btn-primary active'; }
+      loadTabAbsenceData();
+    } else {
+      if (tabAbs) tabAbs.classList.add('hidden');
+      if (tabAtt) tabAtt.classList.remove('hidden');
+      if (btnAbs) { btnAbs.className = 'btn-secondary'; }
+      if (btnAtt) { btnAtt.className = 'btn-primary active'; }
+    }
+  };
+
+  let cachedAttLogs = [];
+  let cachedTabAbsences = [];
+
+  // 날짜 범위 계산 유틸리티
+  function getDateRange(unit, dateStr) {
+    if (!dateStr) return { start: '', end: '' };
+    const parts = dateStr.split('-');
+    const targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+
+    if (unit === 'day') {
+      return { start: dateStr, end: dateStr };
+    } else if (unit === 'week') {
+      const day = targetDate.getDay();
+      const diffToMon = targetDate.getDate() - day + (day === 0 ? -6 : 1);
+      const mon = new Date(targetDate.setDate(diffToMon));
+      const sun = new Date(mon);
+      sun.setDate(mon.getDate() + 6);
+      return { start: Utils.formatDate(mon), end: Utils.formatDate(sun) };
+    } else { // month
+      const y = parts[0];
+      const m = parts[1];
+      const lastDay = new Date(y, parseInt(m, 10), 0).getDate();
+      return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(lastDay).padStart(2, '0')}` };
+    }
+  }
+
+  // Step 3. 기간별 출석자 명부 조회
+  async function loadAttendanceLogs() {
+    const unit = document.getElementById('att-log-unit') ? document.getElementById('att-log-unit').value : 'month';
+    const dateVal = document.getElementById('att-log-date') ? document.getElementById('att-log-date').value : todayStr;
+    const range = getDateRange(unit, dateVal);
+
+    try {
+      const programId = currentProgram ? currentProgram.사업ID : undefined;
+      const res = await API.fetchGAS('getAttendanceSheet', { programId, forceRefresh: true });
+      let list = res.data || [];
+
+      // 기간 필터링 및 출석(O) 인원만 추출
+      list = list.filter(a => {
+        const d = Utils.formatDate(a.날짜);
+        const isDateIn = d >= range.start && d <= range.end;
+        const isAtt = a.출석여부 === 'O' && a.이름 !== '건수입력용_무명' && a.이름 !== '불특정_인원_입력';
+        return isDateIn && isAtt;
+      });
+
+      cachedAttLogs = list;
+      renderAttendanceLogTable(list);
+    } catch (err) {
+      console.error('loadAttendanceLogs error:', err);
+      Utils.showToast('출석 명부 조회 중 오류가 발생했습니다.', 'error');
+    }
+  }
+
+  function renderAttendanceLogTable(list) {
+    const tbody = document.querySelector('#att-log-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center">조회 조건에 맞는 출석자 명부 데이터가 없습니다.</td></tr>';
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    list.forEach(a => {
+      const match = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
+      const roundName = match ? match[1].trim() : '1회차(정규)';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td data-label="날짜">${Utils.formatDate(a.날짜)}</td>
+        <td data-label="회차/시간대"><span class="badge badge-primary" style="font-size:11px;">${roundName}</span></td>
+        <td data-label="사업명"><strong>${a.사업명 || '-'}</strong></td>
+        <td data-label="이름"><strong>${a.이름 || '-'}</strong></td>
+        <td data-label="구분">${a.세부_장애인 ? '장애' : '일반'}</td>
+        <td data-label="장애여부">${a.세부_장애인 > 0 ? '<span class="badge badge-warning">장애</span>' : '<span class="badge badge-neutral">비장애</span>'}</td>
+        <td data-label="입력자">${a.입력자 || '-'}</td>
+        <td data-label="입력시각">${a.입력시각 ? String(a.입력시각).substring(11, 16) : '-'}</td>
+      `;
+      fragment.appendChild(tr);
+    });
+    tbody.appendChild(fragment);
+  }
+
+  // 出석자 명부 엑셀(CSV) 내보내기
+  function exportAttendanceLogsCSV() {
+    if (cachedAttLogs.length === 0) {
+      return Utils.showToast('다운로드할 출석 명부 데이터가 없습니다. 먼저 조회해 주세요.', 'warning');
+    }
+    const headers = ['날짜', '회차/시간대', '팀명', '사업명', '이름', '장애여부', '입력방식', '입력자', '입력시각'];
+    let csv = headers.join(',') + '\n';
+    cachedAttLogs.forEach(a => {
+      const match = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
+      const roundName = match ? match[1].trim() : '1회차(정규)';
+      csv += [
+        Utils.formatDate(a.날짜),
+        `"${roundName}"`,
+        `"${a.팀명 || ''}"`,
+        `"${a.사업명 || ''}"`,
+        `"${a.이름 || ''}"`,
+        a.세부_장애인 > 0 ? '장애' : '비장애',
+        `"${a.입력방식 || ''}"`,
+        `"${a.입력자 || ''}"`,
+        `"${a.입력시각 || ''}"`
+      ].join(',') + '\n';
+    });
+    Utils.downloadCSV(csv, `출석자명부_${document.getElementById('att-log-unit').value}_${document.getElementById('att-log-date').value}.csv`);
+  }
+
+  // 탭 2: 결석 사유 현황 조회
+  async function loadTabAbsenceData() {
+    const unit = document.getElementById('absence-tab-unit') ? document.getElementById('absence-tab-unit').value : 'month';
+    const dateVal = document.getElementById('absence-tab-date') ? document.getElementById('absence-tab-date').value : todayStr;
+    const range = getDateRange(unit, dateVal);
+
+    try {
+      const res = await API.fetchGAS('getAttendanceSheet', { forceRefresh: true });
+      let list = res.data || [];
+
+      list = list.filter(a => {
+        const d = Utils.formatDate(a.날짜);
+        const isDateIn = d >= range.start && d <= range.end;
+        const isAbs = a.출석여부 === 'X' || String(a.비고 || '').includes('결석사유');
+        return isDateIn && isAbs;
+      });
+
+      cachedTabAbsences = list;
+      renderTabAbsenceTable(list);
+    } catch (err) {
+      console.error('loadTabAbsenceData error:', err);
+      Utils.showToast('결석 사유 현황 조회 중 오류가 발생했습니다.', 'error');
+    }
+  }
+
+  function renderTabAbsenceTable(list) {
+    const tbody = document.querySelector('#absence-tab-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center">조회 조건에 맞는 결석 사유 기록이 없습니다.</td></tr>';
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    list.forEach(a => {
+      const matchRound = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
+      const roundName = matchRound ? matchRound[1].trim() : '1회차(정규)';
+      
+      let reason = '-';
+      const matchReason = String(a.비고 || '').match(/결석사유:\s*([^/]+)/);
+      if (matchReason) {
+        reason = matchReason[1].trim();
+      } else if (a.비고 && !a.비고.includes('[회차:')) {
+        reason = a.비고;
+      }
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td data-label="날짜">${Utils.formatDate(a.날짜)}</td>
+        <td data-label="수업회차/시간대"><span class="badge badge-primary" style="font-size:11px;">${roundName}</span></td>
+        <td data-label="사업명"><strong>${a.사업명 || '-'}</strong></td>
+        <td data-label="이름"><strong>${a.이름 || '-'}</strong></td>
+        <td data-label="장애구분">${a.세부_장애인 > 0 ? '<span class="badge badge-warning">장애</span>' : '<span class="badge badge-neutral">비장애</span>'}</td>
+        <td data-label="결석사유"><span style="color:var(--color-error); font-weight:bold;">⚠️ ${reason}</span></td>
+      `;
+      fragment.appendChild(tr);
+    });
+    tbody.appendChild(fragment);
+  }
+
+  // 결석 사유 엑셀(CSV) 내보내기
+  function exportTabAbsencesCSV() {
+    if (cachedTabAbsences.length === 0) {
+      return Utils.showToast('다운로드할 결석 사유 데이터가 없습니다. 먼저 현황을 조회해 주세요.', 'warning');
+    }
+    const headers = ['날짜', '수업회차/시간대', '팀명', '사업명', '이름', '장애구분', '결석사유'];
+    let csv = headers.join(',') + '\n';
+    cachedTabAbsences.forEach(a => {
+      const matchRound = String(a.비고 || '').match(/\[회차:\s*([^\]]+)\]/);
+      const roundName = matchRound ? matchRound[1].trim() : '1회차(정규)';
+      let reason = '-';
+      const matchReason = String(a.비고 || '').match(/결석사유:\s*([^/]+)/);
+      if (matchReason) reason = matchReason[1].trim();
+      else if (a.비고 && !a.비고.includes('[회차:')) reason = a.비고;
+
+      csv += [
+        Utils.formatDate(a.날짜),
+        `"${roundName}"`,
+        `"${a.팀명 || ''}"`,
+        `"${a.사업명 || ''}"`,
+        `"${a.이름 || ''}"`,
+        a.세부_장애인 > 0 ? '장애' : '비장애',
+        `"${reason.replace(/"/g, '""')}"`
+      ].join(',') + '\n';
+    });
+    Utils.downloadCSV(csv, `결석사유현황_${document.getElementById('absence-tab-unit').value}_${document.getElementById('absence-tab-date').value}.csv`);
+  }
+
+  // 이벤트 바인딩
+  const btnLoadLogs = document.getElementById('btn-load-att-logs');
+  if (btnLoadLogs) btnLoadLogs.addEventListener('click', loadAttendanceLogs);
+
+  const btnExportLogs = document.getElementById('btn-export-att-logs');
+  if (btnExportLogs) btnExportLogs.addEventListener('click', exportAttendanceLogsCSV);
+
+  const btnLoadAbsences = document.getElementById('btn-load-tab-absences');
+  if (btnLoadAbsences) btnLoadAbsences.addEventListener('click', loadTabAbsenceData);
+
+  const btnExportAbsences = document.getElementById('btn-export-tab-absences');
+  if (btnExportAbsences) btnExportAbsences.addEventListener('click', exportTabAbsencesCSV);
 });
