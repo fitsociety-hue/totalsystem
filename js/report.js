@@ -260,10 +260,13 @@ async function loadWritePrograms() {
   try {
     const teamName = user.role === '관리자' ? '' : user.team;
     
-    // 1. Get user's programs
+    // 1. Get user's programs (팀원의 경우 지정된 사업이 있으면 해당 사업 우선, 없으면 팀 전체 사업 표시)
     let programs = await ProgramsLogic.loadTeamPrograms(teamName, true);
     if (user.role !== '관리자') {
-      programs = programs.filter(p => p.담당자 && p.담당자.includes(user.name));
+      const userAssigned = programs.filter(p => p.담당자 && p.담당자.includes(user.name));
+      if (userAssigned.length > 0) {
+        programs = userAssigned;
+      }
     }
 
     // 2. Add COMMON worklog card at the first position
@@ -274,7 +277,7 @@ async function loadWritePrograms() {
       사업분류: '공통'
     });
 
-    // 3. Load existing logs & attendance for pre-filling (Single batch fetch instead of 38 sequential calls)
+    // 3. Load existing logs & attendance for pre-filling (Single batch fetch instead of sequential calls)
     const [logRes, attAllRes] = await Promise.all([
       API.fetchGAS('getDailyWorkLogs', { date: dateStr, teamName: user.team, staffNames: [user.name] }),
       API.fetchGAS('getAttendanceSheet', { date: dateStr })
@@ -292,7 +295,7 @@ async function loadWritePrograms() {
       if (p.실적유형 === '공통') {
         rateHtml = `
           <div class="mb-2" style="font-size: 13px; color: var(--color-text-sub);">
-            오늘 하루 동안 진행하신 전반적인 업무 총평 및 종합 실적 내용을 자유롭게 작성해 주세요.
+            오늘 하루 동안 진행하신 전반적인 업무 총평 및 종합 실적 내용을 자유롭게 작성해 주세요. (Ctrl + Enter로 빠른 저장 가능)
           </div>
         `;
       } else {
@@ -371,7 +374,7 @@ async function loadWritePrograms() {
           
           <div class="form-group mb-0 mt-3">
             <label class="form-label" style="font-size:13px; font-weight:bold;">업무 내용 입력</label>
-            <textarea id="work-desc-${p.사업ID}" class="form-input" rows="3" placeholder="내용을 여기에 상세히 기재해 주세요.">${log.업무내용 || ''}</textarea>
+            <textarea id="work-desc-${p.사업ID}" class="form-input work-textarea" rows="3" placeholder="내용을 여기에 상세히 기재해 주세요.">${log.업무내용 || ''}</textarea>
           </div>
         </div>
       `;
@@ -394,7 +397,28 @@ async function loadWritePrograms() {
         }, 100);
       }
     }
+
+    // 4. 텍스트 영역 높이 자동 확장 및 Ctrl+Enter 저장 단축키 등록
+    setTimeout(() => {
+      document.querySelectorAll('.work-textarea').forEach(txt => {
+        const autoResize = () => {
+          txt.style.height = 'auto';
+          txt.style.height = Math.max(90, txt.scrollHeight + 4) + 'px';
+        };
+        txt.addEventListener('input', autoResize);
+        autoResize();
+
+        txt.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            saveDailyWorkLog();
+          }
+        });
+      });
+    }, 100);
+
   } catch(e) {
+    console.error(e);
     listContainer.innerHTML = '<p class="text-center text-error">데이터를 불러오는 중 오류가 발생했습니다.</p>';
   }
 }
@@ -407,6 +431,7 @@ async function saveDailyWorkLog() {
   if (cards.length === 0) return;
   
   const workLogs = [];
+  const perfPromises = [];
   
   try {
     Utils.showLoading();
@@ -423,34 +448,49 @@ async function saveDailyWorkLog() {
         workLogs.push({ 사업ID: pid, 사업명: pname, 업무내용: desc });
       }
       
-      // 1. 실적 값 저장 처리
+      // 1. 실적 값 병렬 저장 처리
       if (ptype === '건수') {
         const countInput = document.getElementById(`perf-count-${pid}`);
-        const count = parseInt(countInput.value, 10) || 0;
-        await API.fetchGAS('submitCountOnly', { programId: pid, date: dateStr, count });
+        if (countInput) {
+          const count = parseInt(countInput.value, 10) || 0;
+          perfPromises.push(API.fetchGAS('submitCountOnly', { programId: pid, date: dateStr, count }));
+        }
       } else if (ptype === '불특정 인원(실인원, 건수, 연인원)') {
-        const real = parseInt(document.getElementById(`perf-unspec-real-${pid}`).value, 10) || 0;
-        const count = parseInt(document.getElementById(`perf-unspec-count-${pid}`).value, 10) || 0;
-        const staff = parseInt(document.getElementById(`perf-unspec-staff-${pid}`).value, 10) || 0;
-        const disabled = parseInt(document.getElementById(`perf-unspec-disabled-${pid}`).value, 10) || 0;
-        const nondisabled = parseInt(document.getElementById(`perf-unspec-nondisabled-${pid}`).value, 10) || 0;
-        
-        const data = {
-          realCount: real,
-          count: count,
-          accumCount: staff + disabled + nondisabled,
-          staffCount: staff,
-          disabledCount: disabled,
-          nonDisabledCount: nondisabled,
-          remark: ''
-        };
-        await API.fetchGAS('submitUnspecifiedAttendance', { programId: pid, date: dateStr, data });
+        const realInput = document.getElementById(`perf-unspec-real-${pid}`);
+        if (realInput) {
+          const real = parseInt(realInput.value, 10) || 0;
+          const count = parseInt(document.getElementById(`perf-unspec-count-${pid}`).value, 10) || 0;
+          const staff = parseInt(document.getElementById(`perf-unspec-staff-${pid}`).value, 10) || 0;
+          const disabled = parseInt(document.getElementById(`perf-unspec-disabled-${pid}`).value, 10) || 0;
+          const nondisabled = parseInt(document.getElementById(`perf-unspec-nondisabled-${pid}`).value, 10) || 0;
+          
+          const data = {
+            realCount: real,
+            count: count,
+            accumCount: staff + disabled + nondisabled,
+            staffCount: staff,
+            disabledCount: disabled,
+            nonDisabledCount: nondisabled,
+            remark: ''
+          };
+          perfPromises.push(API.fetchGAS('submitUnspecifiedAttendance', { programId: pid, date: dateStr, data }));
+        }
       }
     }
     
+    // 실적 값 병렬 전송
+    if (perfPromises.length > 0) {
+      await Promise.all(perfPromises);
+    }
+
     // 2. 업무 내용 텍스트 일괄 저장
     await API.fetchGAS('submitDailyWorkLog', { date: dateStr, workLogs });
     
+    // 3. 최근 저장 캐시 즉시 비우기 (통합 조회 탭 전환 시 신규 내용 즉각 반영)
+    if (window.APICache && typeof APICache.clearAll === 'function') {
+      APICache.clearAll();
+    }
+
     Utils.hideLoading();
     Utils.showToast('일일 업무 및 실적이 안전하게 저장되었습니다.', 'success');
   } catch(e) {
