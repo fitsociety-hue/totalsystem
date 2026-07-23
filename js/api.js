@@ -147,26 +147,41 @@ const API = {
     }
 
     if (action === 'getDailyWorkLogs') {
-      let list = data;
+      let workLogs = Array.isArray(data) ? data : (data.workLogs || []);
+      let stats = Array.isArray(data) ? [] : (data.stats || []);
+      let supervision = Array.isArray(data) ? [] : (data.supervision || []);
+
       const targetDateStr = Utils.formatDate(params.date || params.startDate || new Date());
       const sD = Utils.formatDate(params.startDate || params.date || targetDateStr);
       const eD = Utils.formatDate(params.endDate || params.date || targetDateStr);
 
       if (params.teamName && params.teamName !== '전체') {
-        list = list.filter(l => String(l.팀명 || '').trim() === params.teamName);
+        workLogs = workLogs.filter(l => String(l.팀명 || '').trim() === params.teamName);
+        supervision = supervision.filter(s => String(s.팀명 || '').trim() === params.teamName);
       }
       if (sD && eD) {
-        list = list.filter(l => {
+        workLogs = workLogs.filter(l => {
           const lD = Utils.formatDate(l.날짜);
           return lD >= sD && lD <= eD;
         });
+        supervision = supervision.filter(s => {
+          const sDate = Utils.formatDate(s.날짜);
+          return sDate >= sD && sDate <= eD;
+        });
       }
       if (params.staffNames && params.staffNames.length > 0) {
-        list = list.filter(l => params.staffNames.includes(l.직원명));
+        workLogs = workLogs.filter(l => params.staffNames.includes(l.직원명));
       }
 
-      // If stats are not pre-computed in static payload, return null to force live GAS call
-      return null;
+      if (!stats || stats.length === 0) {
+        stats = this.computeDailyWorkLogStats(params.teamName, sD, eD);
+      }
+
+      return {
+        workLogs: workLogs,
+        stats: stats,
+        supervision: supervision
+      };
     }
 
     if (action === 'getSupervision') {
@@ -182,6 +197,157 @@ const API = {
     }
 
     return data;
+  },
+
+  computeDailyWorkLogStats: function(teamName, sD, eD) {
+    try {
+      const cachedProgs = APICache.get('getPrograms', {}) || [];
+      const cachedAtt = APICache.get('getAttendanceSheet', {}) || [];
+      const cachedMembers = APICache.get('getMembers', {}) || [];
+      
+      const progs = cachedProgs.filter(p => p && p.상태 === '활성' && (!teamName || teamName === '전체' || p.팀명 === teamName));
+      if (progs.length === 0) return [];
+
+      const memberMap = {};
+      cachedMembers.forEach(m => { memberMap[m.이름] = m.구분 || '개별'; });
+
+      const targetYear = new Date(eD || new Date()).getFullYear();
+      const mStr = String(new Date(eD || new Date()).getMonth() + 1).padStart(2, '0');
+      const monthStartStr = `${targetYear}-${mStr}-01`;
+      const yearStartStr = `${targetYear}-01-01`;
+
+      const calcStats = (startDateStr, endDateStr) => {
+        const progIds = progs.map(p => p.사업ID);
+        const progMap = {};
+        progs.forEach(p => { progMap[p.사업ID] = p; });
+
+        const periodAtt = cachedAtt.filter(a => {
+          if (!progIds.includes(a.사업ID)) return false;
+          const dStr = Utils.formatDate(a.날짜);
+          return dStr >= startDateStr && dStr <= endDateStr;
+        });
+
+        const priorAtt = cachedAtt.filter(a => {
+          if (!progIds.includes(a.사업ID)) return false;
+          const dStr = Utils.formatDate(a.날짜);
+          return dStr >= yearStartStr && dStr < startDateStr;
+        });
+
+        const priorNamesByProg = {};
+        priorAtt.forEach(a => {
+          const p = progMap[a.사업ID];
+          if (!p) return;
+          const isMemberType = (p.실적유형 !== '건수' && p.실적유형 !== '건수만' && p.실적유형 !== '불특정 인원(실인원, 건수, 연인원)');
+          if (isMemberType && a.출석여부 === 'O' && a.이름 !== '건수입력용_무명' && a.이름 !== '불특정_인원_입력') {
+            if (!priorNamesByProg[a.사업ID]) priorNamesByProg[a.사업ID] = new Set();
+            priorNamesByProg[a.사업ID].add(a.이름);
+          }
+        });
+
+        const periodAttByProg = {};
+        periodAtt.forEach(a => {
+          if (!periodAttByProg[a.사업ID]) periodAttByProg[a.사업ID] = [];
+          periodAttByProg[a.사업ID].push(a);
+        });
+
+        const resStats = {};
+        progs.forEach(p => {
+          const isMemberType = (p.실적유형 !== '건수' && p.실적유형 !== '건수만' && p.실적유형 !== '불특정 인원(실인원, 건수, 연인원)');
+          const isUnspecifiedType = (p.실적유형 === '불특정 인원(실인원, 건수, 연인원)');
+
+          const pAtt = periodAttByProg[p.사업ID] || [];
+          const pPriorNames = priorNamesByProg[p.사업ID] || new Set();
+          const pNames = new Set();
+          let pCumReal = 0;
+
+          pAtt.forEach(a => {
+            if (isMemberType && a.출석여부 === 'O' && a.이름 !== '건수입력용_무명' && a.이름 !== '불특정_인원_입력') {
+              if (!pPriorNames.has(a.이름)) pNames.add(a.이름);
+            }
+            if (isUnspecifiedType) pCumReal += Number(a.실인원) || 0;
+          });
+
+          let pAccum = 0;
+          let pCount = 0;
+
+          if (isMemberType) {
+            pAtt.forEach(a => { if (a.출석여부 === 'O') pAccum++; });
+            const pDaily = {};
+            pAtt.forEach(a => {
+              const dStr = Utils.formatDate(a.날짜);
+              if (!pDaily[dStr]) pDaily[dStr] = [];
+              pDaily[dStr].push(a);
+            });
+            Object.keys(pDaily).forEach(dStr => {
+              const records = pDaily[dStr];
+              let hasGroup = false;
+              let indvCount = 0;
+              records.forEach(a => {
+                if (a.출석여부 === 'O') {
+                  const mType = memberMap[a.이름] || '개별';
+                  if (mType === '그룹') hasGroup = true;
+                  else indvCount++;
+                }
+              });
+              pCount += (hasGroup ? 1 : 0) + indvCount;
+            });
+          } else if (isUnspecifiedType) {
+            pAtt.forEach(a => {
+              pCount += Number(a.건수) || 0;
+              pAccum += Number(a.연인원) || 0;
+            });
+          } else {
+            pAtt.forEach(a => { pCount += Number(a.건수) || 0; });
+          }
+
+          resStats[p.사업ID] = {
+            실인원: isMemberType ? pNames.size : (isUnspecifiedType ? pCumReal : 0),
+            건수: pCount,
+            연인원: isMemberType ? pAccum : (isUnspecifiedType ? pAccum : 0)
+          };
+        });
+        return resStats;
+      };
+
+      const periodStats = calcStats(sD, eD);
+      const monthStats = calcStats(monthStartStr, eD);
+      const yearStats = calcStats(yearStartStr, eD);
+
+      return progs.map(p => {
+        const pid = p.사업ID;
+        const pPeriod = periodStats[pid] || { 실인원: 0, 건수: 0, 연인원: 0 };
+        const pMonth = monthStats[pid] || { 실인원: 0, 건수: 0, 연인원: 0 };
+        const pYear = yearStats[pid] || { 실인원: 0, 건수: 0, 연인원: 0 };
+
+        const goalReal = Number(p.목표_실인원) || 0;
+        const goalCount = Number(p.목표_건수) || 0;
+        const goalAccum = Number(p.목표_연인원) || 0;
+
+        let achieveRate = 0;
+        const isMemberType = (p.실적유형 !== '건수' && p.실적유형 !== '건수만' && p.실적유형 !== '불특정 인원(실인원, 건수, 연인원)');
+        if (isMemberType) {
+          achieveRate = goalAccum > 0 ? Math.round((pYear.연인원 / goalAccum) * 100) : 0;
+        } else {
+          achieveRate = goalCount > 0 ? Math.round((pYear.건수 / goalCount) * 100) : 0;
+        }
+
+        return {
+          사업ID: pid,
+          사업명: p.사업명,
+          사업분류: p.사업분류,
+          세부사업분류: p.세부사업분류,
+          실적유형: p.실적유형,
+          목표: { 실인원: goalReal, 건수: goalCount, 연인원: goalAccum },
+          일계: pPeriod,
+          월계: pMonth,
+          누계: pYear,
+          달성률: achieveRate
+        };
+      });
+    } catch(e) {
+      console.warn('computeDailyWorkLogStats warning:', e);
+      return [];
+    }
   },
 
   fetchGAS: async function(action, params = {}, method = 'POST') {

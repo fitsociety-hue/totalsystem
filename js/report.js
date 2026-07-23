@@ -261,7 +261,7 @@ async function loadWritePrograms() {
     const teamName = user.role === '관리자' ? '' : user.team;
     
     // 1. Get user's programs (팀원의 경우 지정된 사업이 있으면 해당 사업 우선, 없으면 팀 전체 사업 표시)
-    let programs = await ProgramsLogic.loadTeamPrograms(teamName, true);
+    let programs = await ProgramsLogic.loadTeamPrograms(teamName, false);
     if (user.role !== '관리자') {
       const userAssigned = programs.filter(p => p.담당자 && p.담당자.includes(user.name));
       if (userAssigned.length > 0) {

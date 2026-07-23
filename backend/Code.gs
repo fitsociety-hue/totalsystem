@@ -1762,11 +1762,11 @@ function getDailyWorkLogs(date, startDate, endDate, staffNames, teamName) {
   const monthStartStr = `${targetYear}-${mStr}-01`;
   const yearStartStr = `${targetYear}-01-01`;
 
-  const progs = getSheetDataAsJSON('사업_마스터', true).filter(p => p.팀명 === teamName && p.상태 === '활성');
-  const attData = getSheetDataAsJSON('출석_원장', true);
+  const progs = getSheetDataAsJSON('사업_마스터').filter(p => p.팀명 === teamName && p.상태 === '활성');
+  const attData = getSheetDataAsJSON('출석_원장');
   
   const memberMap = {};
-  getSheetDataAsJSON('회원_마스터', true).forEach(m => {
+  getSheetDataAsJSON('회원_마스터').forEach(m => {
     memberMap[m.이름] = m.구분 || '개별';
   });
 
@@ -1806,7 +1806,7 @@ function getDailyWorkLogs(date, startDate, endDate, staffNames, teamName) {
     };
   });
 
-  const allLogs = getSheetDataAsJSON('업무일지_작성', true);
+  const allLogs = getSheetDataAsJSON('업무일지_작성');
   let filteredLogs = allLogs.filter(l => {
     const dStr = formatDateStr(l.날짜);
     return dStr >= sD && dStr <= eD && l.팀명 === teamName;
