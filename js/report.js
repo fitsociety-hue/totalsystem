@@ -513,6 +513,10 @@ async function generateReport() {
     const params = { date: startDate, startDate, endDate, teamName, staffNames: selectedStaffs };
     
     const res = await API.fetchGAS('getDailyWorkLogs', params);
+    if (!res || !res.success || !res.data) {
+      throw new Error('서버로부터 보고서 데이터를 정상적으로 불러오지 못했습니다.');
+    }
+
     currentReportData = res.data;
     
     renderReportPreview(type, startDate, endDate, teamName);

@@ -86,6 +86,7 @@ const API = {
       if (!json || !json.success || json.data === undefined) return null;
 
       const filteredData = this.filterStaticData(action, params, json.data);
+      if (filteredData === null) return null;
       console.log(`[Vercel CDN Static Hit] ${action}`, filteredData);
       return { success: true, data: filteredData, isStatic: true };
     } catch (e) {
